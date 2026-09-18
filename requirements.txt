@@ -1,0 +1,2 @@
+# Shared dependencies for the frontend inference examples and the Demo.
+-r demos/requirements.txt
