@@ -66,11 +66,13 @@ bash install.sh
 
 安装后，按需选择下面的离线推理或在线体验。
 
-### 2. 离线推理 · Frontend Usage
+### 2. Frontend Usage
 
 从上方模型入口下载权重，将示例路径替换为本地目录。
 
 #### Realtime-Venus-Omni
+
+**离线视频对话。** 根据输入视频的内容生成文本和语音回复。下面分别演示基础视频对话和启用长视频记忆的用法。
 
 ```bash
 export REALTIME_VENUS_MODEL_PATH=/path/to/Realtime-Venus-Omni
@@ -80,7 +82,7 @@ python frontend/Realtime-Venus-Omni/offline_chat.py
 python frontend/Realtime-Venus-Omni/offline_memory_chat.py
 ```
 
-示例读取权重目录 `assets/` 中的视频，输出文本与语音。也可以使用录制好的输入运行全双工推理：
+**全双工视频交互。** 流式接收录制视频中的画面与声音，在持续感知的同时生成文本和语音回复。三个示例分别展示文本提问、语音提问和长视频记忆的用法。
 
 ```bash
 python frontend/Realtime-Venus-Omni/duplex_chat.py
@@ -92,13 +94,15 @@ python frontend/Realtime-Venus-Omni/duplex_memory_chat.py
 
 #### Realtime-Venus-Audio
 
+**离线音频理解。** 输入一段完整音频，由模型理解其内容并生成文本回复。
+
 ```bash
 python frontend/Realtime-Venus-Audio/audio_offline_chat.py \
   --model-path /path/to/Realtime-Venus-Audio \
   --audio frontend/Realtime-Venus-Audio/case/case_offline.wav
 ```
 
-离线推理返回文本。使用录制好的音频运行全双工推理并保存 24 kHz WAV：
+**全双工音频交互。** 流式处理录制音频，在持续聆听的同时生成语音回复，并将输出保存为 24 kHz WAV 文件。
 
 ```bash
 python frontend/Realtime-Venus-Audio/audio_duplex_chat.py \
@@ -109,7 +113,7 @@ python frontend/Realtime-Venus-Audio/audio_duplex_chat.py \
 
 两个脚本均支持 `--system-prompt` 与 `--prompt`，解码参数见 [Audio 指南](frontend/Realtime-Venus-Audio/README.md)。
 
-### 3. 在线 Duplex 体验
+### 3. 与 Realtime-Venus 实时对话
 
 在线 Duplex 体验**至少需要一张 NVIDIA A100**。将完整的 Omni 权重放入 `model_weight/`，然后启动：
 

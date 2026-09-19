@@ -66,11 +66,13 @@ bash install.sh
 
 Then choose standalone inference or the online experience below.
 
-### 2. Offline inference · Frontend Usage
+### 2. Frontend Usage
 
 Download the model checkpoint from the links above and replace the example paths with your local directories.
 
 #### Realtime-Venus-Omni
+
+**Offline video chat.** Generate text and speech responses based on the input video. The two examples demonstrate basic video chat and chat with long-video memory.
 
 ```bash
 export REALTIME_VENUS_MODEL_PATH=/path/to/Realtime-Venus-Omni
@@ -80,7 +82,7 @@ python frontend/Realtime-Venus-Omni/offline_chat.py
 python frontend/Realtime-Venus-Omni/offline_memory_chat.py
 ```
 
-These examples read videos from the checkpoint's `assets/` directory and output text and speech. To run full-duplex inference on recorded inputs instead:
+**Full-duplex video interaction.** Stream the visual and audio content of a recorded video into the model as it generates text and speech responses. The three examples demonstrate text questions, spoken questions, and long-video memory.
 
 ```bash
 python frontend/Realtime-Venus-Omni/duplex_chat.py
@@ -92,13 +94,15 @@ Duplex examples save subtitled videos. See the [Omni guide](frontend/Realtime-Ve
 
 #### Realtime-Venus-Audio
 
+**Offline audio understanding.** Provide a complete audio clip for the model to understand and respond to in text.
+
 ```bash
 python frontend/Realtime-Venus-Audio/audio_offline_chat.py \
   --model-path /path/to/Realtime-Venus-Audio \
   --audio frontend/Realtime-Venus-Audio/case/case_offline.wav
 ```
 
-Offline inference returns text. To run full-duplex inference on recorded audio and save a 24 kHz WAV:
+**Full-duplex audio interaction.** Stream recorded audio into the model and generate speech responses while it continues listening. Save the output as a 24 kHz WAV file.
 
 ```bash
 python frontend/Realtime-Venus-Audio/audio_duplex_chat.py \
@@ -109,7 +113,7 @@ python frontend/Realtime-Venus-Audio/audio_duplex_chat.py \
 
 Both scripts accept `--system-prompt` and `--prompt`; see the [Audio guide](frontend/Realtime-Venus-Audio/README.md) for decoding options.
 
-### 3. Online Duplex experience
+### 3. Talk to Realtime-Venus
 
 The online Duplex demo requires **at least one NVIDIA A100 GPU**. Place the complete Omni checkpoint in `model_weight/`, then start the demo:
 
