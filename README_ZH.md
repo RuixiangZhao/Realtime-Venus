@@ -16,7 +16,6 @@
 <a href="https://www.modelscope.cn/models/inclusionAI/Realtime-Venus"><img src="https://img.shields.io/badge/ModelScope-Realtime--Venus-624AFF.svg?logo=modelscope&logoColor=white" alt="Realtime-Venus on ModelScope"></a>
 <a href="https://arxiv.org/abs/2609.13814"><img src="https://img.shields.io/badge/arXiv-2609.13814-b31b1b.svg?logo=arxiv&logoColor=white" alt="arXiv"></a>
 <a href="https://github.com/inclusionAI/Realtime-Venus"><img src="https://img.shields.io/badge/GitHub-Realtime--Venus-181717.svg?logo=github&logoColor=white" alt="GitHub"></a>
-<a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-0b7285.svg?logo=apache&logoColor=white" alt="Apache License 2.0"></a>
 </p>
 
 [项目介绍](#项目介绍) · [快速开始](#快速开始) · [评测结果](#评测结果) · [代码结构](#代码结构) · [引用](#引用)
@@ -48,11 +47,21 @@
 
 ### 1. 安装依赖
 
-以下命令均在仓库根目录执行。独立推理使用 Python 3.10、CUDA 和 FFmpeg，按需安装对应模型的依赖：
+独立推理需要 Python 3.10、CUDA 和 FFmpeg。安装 Hugging Face 或 ModelScope 命令行工具后，在源码仓库根目录任选下面的一条命令，下载 Omni 和 Audio 的模型目录：
+
+```bash
+huggingface-cli download inclusionAI/Realtime-Venus --local-dir . \
+  --include "Realtime-Venus-Omni/*" "Realtime-Venus-Audio/*"
+# 或：
+modelscope download --model inclusionAI/Realtime-Venus --local_dir . \
+  --include "Realtime-Venus-Omni/*" "Realtime-Venus-Audio/*"
+```
+
+然后按需安装对应模型的依赖：
 
 ```bash
 # Realtime-Venus-Omni
-python -m pip install -r /path/to/Realtime-Venus-Omni/requirements.txt
+python -m pip install -r Realtime-Venus-Omni/requirements.txt
 
 # Realtime-Venus-Audio
 python -m pip install -r requirements.txt

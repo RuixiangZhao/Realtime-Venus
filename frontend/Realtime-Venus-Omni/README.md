@@ -1,7 +1,7 @@
 # Realtime-Venus-Omni
 
 This directory contains five standalone examples for running
-[Realtime-Venus-Omni](https://huggingface.co/Realtime-Venus/Realtime-Venus-Omni)
+[Realtime-Venus-Omni](https://huggingface.co/inclusionAI/Realtime-Venus)
 with Hugging Face Transformers. The examples cover streaming full-duplex and
 turn-based half-duplex inference, both with and without long-video Memory.
 
@@ -17,19 +17,26 @@ turn-based half-duplex inference, both with and without long-video Memory.
 
 ## Setup
 
-Python 3.10, CUDA, and FFmpeg are required. Install the dependencies from the
-downloaded model repository:
+Python 3.10, CUDA, and FFmpeg are required. With the Hugging Face CLI or
+ModelScope CLI installed, run one of the following commands from the source
+repository root to download the Omni and Audio checkpoint directories:
+
+```bash
+huggingface-cli download inclusionAI/Realtime-Venus --local-dir . \
+  --include "Realtime-Venus-Omni/*" "Realtime-Venus-Audio/*"
+# or:
+modelscope download --model inclusionAI/Realtime-Venus --local_dir . \
+  --include "Realtime-Venus-Omni/*" "Realtime-Venus-Audio/*"
+```
 
 ```bash
 python -m pip install -r Realtime-Venus-Omni/requirements.txt
 ```
 
-Each example resolves the model in this order:
+Each example resolves the local model in this order:
 
 1. `REALTIME_VENUS_MODEL_PATH`, when set.
 2. The `Realtime-Venus-Omni/` model directory at the repository root.
-3. The public model ID `Realtime-Venus/Realtime-Venus-Omni`, downloaded through
-   `huggingface_hub.snapshot_download()`.
 
 To select an existing local model directory explicitly:
 

@@ -16,7 +16,6 @@
 <a href="https://www.modelscope.cn/models/inclusionAI/Realtime-Venus"><img src="https://img.shields.io/badge/ModelScope-Realtime--Venus-624AFF.svg?logo=modelscope&logoColor=white" alt="Realtime-Venus on ModelScope"></a>
 <a href="https://arxiv.org/abs/2609.13814"><img src="https://img.shields.io/badge/arXiv-2609.13814-b31b1b.svg?logo=arxiv&logoColor=white" alt="arXiv"></a>
 <a href="https://github.com/inclusionAI/Realtime-Venus"><img src="https://img.shields.io/badge/GitHub-Realtime--Venus-181717.svg?logo=github&logoColor=white" alt="GitHub"></a>
-<a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-0b7285.svg?logo=apache&logoColor=white" alt="Apache License 2.0"></a>
 </p>
 
 [Overview](#overview) · [Quick start](#quick-start) · [Results](#results) · [Code map](#code-map) · [Citation](#citation)
@@ -48,11 +47,21 @@ The [paper](https://arxiv.org/html/2609.13814v1) describes the model family, dua
 
 ### 1. Install dependencies
 
-Run the commands from the repository root. For standalone inference, use Python 3.10 with CUDA and FFmpeg, and install the dependencies for your model:
+Standalone inference requires Python 3.10, CUDA, and FFmpeg. With the Hugging Face CLI or ModelScope CLI installed, run one of the following commands from the source repository root to download the Omni and Audio checkpoint directories:
+
+```bash
+huggingface-cli download inclusionAI/Realtime-Venus --local-dir . \
+  --include "Realtime-Venus-Omni/*" "Realtime-Venus-Audio/*"
+# or:
+modelscope download --model inclusionAI/Realtime-Venus --local_dir . \
+  --include "Realtime-Venus-Omni/*" "Realtime-Venus-Audio/*"
+```
+
+Then install the dependencies for your model:
 
 ```bash
 # Realtime-Venus-Omni
-python -m pip install -r /path/to/Realtime-Venus-Omni/requirements.txt
+python -m pip install -r Realtime-Venus-Omni/requirements.txt
 
 # Realtime-Venus-Audio
 python -m pip install -r requirements.txt

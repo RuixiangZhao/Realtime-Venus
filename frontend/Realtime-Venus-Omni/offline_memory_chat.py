@@ -6,7 +6,6 @@ from pathlib import Path
 os.environ["MAX_NUM_FRAMES"] = "100000"
 
 import torch
-from huggingface_hub import snapshot_download
 from minicpmo.utils import get_video_frame_audio_segments
 from transformers import AutoModel, set_seed
 
@@ -14,7 +13,6 @@ from transformers import AutoModel, set_seed
 COOKBOOK_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = COOKBOOK_DIR.parent.parent
 OUTPUT_DIR = COOKBOOK_DIR / "output"
-HF_MODEL_ID = "Realtime-Venus/Realtime-Venus-Omni"
 
 
 def resolve_model_dir() -> Path:
@@ -23,10 +21,12 @@ def resolve_model_dir() -> Path:
         return Path(configured).expanduser().resolve()
 
     local_model = PROJECT_DIR / "Realtime-Venus-Omni"
-    if (local_model / "config.json").is_file():
-        return local_model
-
-    return Path(snapshot_download(repo_id=HF_MODEL_ID))
+    if not (local_model / "config.json").is_file():
+        raise FileNotFoundError(
+            f"Model checkpoint not found at {local_model}. Download "
+            "inclusionAI/Realtime-Venus into the repository root first."
+        )
+    return local_model
 
 
 def load_model(model_dir: Path):

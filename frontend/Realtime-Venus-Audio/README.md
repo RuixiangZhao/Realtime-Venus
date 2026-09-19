@@ -7,10 +7,21 @@ Audio-only inference examples for Realtime-Venus-Audio.
 | [`audio_offline_chat.py`](./audio_offline_chat.py) | Processes the complete input with deterministic `model.chat` inference | Text on stdout |
 | [`audio_duplex_chat.py`](./audio_duplex_chat.py) | Feeds one-second chunks through `as_duplex()` while the model alternates between listening and speaking | Text on stdout and a 24 kHz WAV file |
 
-## Requirements
+## Setup
 
-Use Python 3.10, CUDA 12.4, and a CUDA GPU. Install the pinned project
-dependencies from the repository root:
+Python 3.10, CUDA, and FFmpeg are required. With the Hugging Face CLI or
+ModelScope CLI installed, run one of the following commands from the source
+repository root to download the Omni and Audio checkpoint directories:
+
+```bash
+huggingface-cli download inclusionAI/Realtime-Venus --local-dir . \
+  --include "Realtime-Venus-Omni/*" "Realtime-Venus-Audio/*"
+# or:
+modelscope download --model inclusionAI/Realtime-Venus --local_dir . \
+  --include "Realtime-Venus-Omni/*" "Realtime-Venus-Audio/*"
+```
+
+Install the pinned project dependencies from the repository root:
 
 ```bash
 python -m pip install -r requirements.txt
