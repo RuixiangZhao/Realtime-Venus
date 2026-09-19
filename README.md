@@ -6,14 +6,18 @@
 
 **A full-duplex interaction system with asynchronous delegation**
 
-Venus Team · Ant Group · Tsinghua University
+<p align="center">Venus Team(Ant Group) and Tsinghua University</p>
 
-**English** · [简体中文](README_ZH.md)
+<p align="center"><strong>English</strong> | <a href="README_ZH.md">简体中文</a></p>
 
-<a href="https://arxiv.org/abs/2609.13814"><img src="https://img.shields.io/badge/Paper-Technical_Report-B6A3EA?style=flat-square" alt="Technical report" /></a>
-<a href="https://realtime-venus.github.io/"><img src="https://img.shields.io/badge/Project-Website-AEEBD6?style=flat-square" alt="Project website" /></a>
-<a href="https://huggingface.co/inclusionAI/Realtime-Venus"><img src="https://img.shields.io/badge/🤗_Hugging_Face-Realtime--Venus-FFD21E?style=flat-square" alt="Hugging Face models" /></a>
-<a href="https://www.modelscope.cn/models/inclusionAI/Realtime-Venus"><img src="https://img.shields.io/badge/ModelScope-Models-624AFF?style=flat-square" alt="ModelScope" /></a>
+<p align="center">
+<a href="https://realtime-venus.github.io/"><img src="https://img.shields.io/badge/Project_Page-4c9aff.svg?logo=googlechrome&logoColor=white" alt="Project Page"></a>
+<a href="https://huggingface.co/inclusionAI/Realtime-Venus"><img src="https://img.shields.io/badge/Hugging_Face-Realtime--Venus-FFD21E.svg?logo=huggingface&logoColor=000" alt="Realtime-Venus on Hugging Face"></a>
+<a href="https://www.modelscope.cn/models/inclusionAI/Realtime-Venus"><img src="https://img.shields.io/badge/ModelScope-Realtime--Venus-624AFF.svg?logo=modelscope&logoColor=white" alt="Realtime-Venus on ModelScope"></a>
+<a href="https://arxiv.org/abs/2609.13814"><img src="https://img.shields.io/badge/arXiv-2609.13814-b31b1b.svg?logo=arxiv&logoColor=white" alt="arXiv"></a>
+<a href="https://github.com/inclusionAI/Realtime-Venus"><img src="https://img.shields.io/badge/GitHub-Realtime--Venus-181717.svg?logo=github&logoColor=white" alt="GitHub"></a>
+<a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-0b7285.svg?logo=apache&logoColor=white" alt="Apache License 2.0"></a>
+</p>
 
 [Overview](#overview) · [Quick start](#quick-start) · [Results](#results) · [Code map](#code-map) · [Citation](#citation)
 
@@ -165,7 +169,7 @@ Realtime-Venus/
 ```bibtex
 @article{zhao2026realtime,
   title={{Realtime-Venus}: A full-duplex interaction system with asynchronous delegation},
-  author={{Venus Team,Ant Group;Tsinghua University}},
+  author={{Venus Team(Ant Group), Tsinghua University}},
   journal={arXiv preprint arXiv:2609.13814},
   year={2026}
 }
