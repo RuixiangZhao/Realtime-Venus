@@ -169,6 +169,10 @@ ssh -N -L 8032:127.0.0.1:8032 user@server
 
 打开 [http://localhost:8032](http://localhost:8032)，选择**语音、摄像头与麦克风、视频上传**中的一种模式，开始对话。权重目录、配置与服务管理见 [Demo 文档](demos/README_ZH.md)。
 
+### 4. Android 演示应用（Beta）
+
+下载 Android 演示应用：[Realtime-Venus-0918.apk — Beta 测试版](https://github.com/inclusionAI/Realtime-Venus/releases/download/android-beta-0918/Realtime-Venus-0918.apk)。当前为 **Beta 测试版本**，用于研究与演示。安装包详情见[发布页面](https://github.com/inclusionAI/Realtime-Venus/releases/tag/android-beta-0918)。
+
 ## 评测结果
 
 <p align="center"><img src="assets/paper-understanding.svg" width="100%" alt="论文图 1：Omni 视频理解与 Audio 音频理解的基准对比雷达图" /><br /><sub>图 1：视频与音频理解能力对比，来自<a href="https://arxiv.org/html/2609.13814v1#S0.F1">论文</a>。</sub></p>
@@ -218,3 +222,9 @@ Realtime-Venus/
 ## 许可证
 
 本仓库源代码采用 [Apache License 2.0](LICENSE)，单独标注许可证的组件除外。第三方字体和论文图片保留各自的许可条款，详见 [`demos/static/fonts/`](demos/static/fonts/) 中的许可证文件及 [`assets/README.md`](assets/README.md)。
+
+---
+
+© 2026 Realtime-Venus Authors.<br>
+Realtime-Venus is a research project by Venus Team, in collaboration with Tsinghua University.<br>
+The content on this page is for research and demonstration purposes only.

@@ -169,6 +169,10 @@ ssh -N -L 8032:127.0.0.1:8032 user@server
 
 Open [http://localhost:8032](http://localhost:8032), select **voice**, **camera + microphone**, or **video upload**, and start a conversation. Checkpoint layout, configuration, and service management are covered in the [Demo guide](demos/README.md).
 
+### 4. Android Demo (Beta)
+
+Download the Android demo: [Realtime-Venus-0918.apk — Beta](https://github.com/inclusionAI/Realtime-Venus/releases/download/android-beta-0918/Realtime-Venus-0918.apk). This is a **Beta** release for research and demonstration. See the [release page](https://github.com/inclusionAI/Realtime-Venus/releases/tag/android-beta-0918) for package details.
+
 ## Results
 
 <p align="center"><img src="assets/paper-understanding.svg" width="100%" alt="Paper Figure 1: radar charts comparing video understanding for Omni and audio understanding for Audio" /><br /><sub>Figure 1. Video and audio understanding results from the <a href="https://arxiv.org/html/2609.13814v1#S0.F1">paper</a>.</sub></p>
@@ -215,3 +219,9 @@ Realtime-Venus/
 ## License
 
 The source code in this repository is licensed under the [Apache License 2.0](LICENSE), except for components with separate license notices. Third-party fonts and paper figures retain their respective licenses; see the license files in [`demos/static/fonts/`](demos/static/fonts/) and [`assets/README.md`](assets/README.md).
+
+---
+
+© 2026 Realtime-Venus Authors.<br>
+Realtime-Venus is a research project by Venus Team, in collaboration with Tsinghua University.<br>
+The content on this page is for research and demonstration purposes only.
