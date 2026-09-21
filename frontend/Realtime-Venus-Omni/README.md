@@ -17,17 +17,29 @@ turn-based half-duplex inference, both with and without long-video Memory.
 
 ## Setup
 
-Python 3.10, CUDA, and FFmpeg are required. With the Hugging Face CLI or
-ModelScope CLI installed, run one of the following commands from the source
-repository root to download the Omni and Audio checkpoint directories:
+Python 3.10, CUDA, and FFmpeg are required. Run all commands from the source
+repository root. Install the download helper's dependencies, then select Omni:
 
 ```bash
-huggingface-cli download inclusionAI/Realtime-Venus --local-dir . \
-  --include "Realtime-Venus-Omni/*" "Realtime-Venus-Audio/*" "config.yaml"
-# or:
-modelscope download --model inclusionAI/Realtime-Venus --local_dir . \
-  --include "Realtime-Venus-Omni/*" "Realtime-Venus-Audio/*"
+python -m pip install 'huggingface_hub>=0.34' 'PyYAML>=6.0'
+python download_models.py --model omni --local-dir .
 ```
+
+The downloader reads the Hugging Face repository's root `config.yaml` and
+saves it alongside the complete `Realtime-Venus-Omni/` directory. It displays
+standard Hub progress bars and reuses cached files. See the
+[root guide](../../README.md#quick-start) for the `audio` and `all` selections
+and the Python download API.
+
+To use the optional ModelScope mirror, download Omni directly with its CLI:
+
+```bash
+python -m pip install modelscope
+modelscope download --model inclusionAI/Realtime-Venus --local_dir . \
+  --include "Realtime-Venus-Omni/*"
+```
+
+After downloading, install the model dependencies:
 
 ```bash
 python -m pip install -r Realtime-Venus-Omni/requirements.txt
@@ -38,7 +50,8 @@ Each example resolves the local model in this order:
 1. `REALTIME_VENUS_MODEL_PATH`, when set.
 2. The `Realtime-Venus-Omni/` model directory at the repository root.
 
-To select an existing local model directory explicitly:
+The download command above uses the second location. To select an existing
+local model directory elsewhere explicitly:
 
 ```bash
 export REALTIME_VENUS_MODEL_PATH=/path/to/Realtime-Venus-Omni

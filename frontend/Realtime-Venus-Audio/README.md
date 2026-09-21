@@ -9,16 +9,26 @@ Audio-only inference examples for Realtime-Venus-Audio.
 
 ## Setup
 
-Python 3.10, CUDA, and FFmpeg are required. With the Hugging Face CLI or
-ModelScope CLI installed, run one of the following commands from the source
-repository root to download the Omni and Audio checkpoint directories:
+Python 3.10, CUDA, and FFmpeg are required. Run all commands from the source
+repository root. Install the download helper's dependencies, then select Audio:
 
 ```bash
-huggingface-cli download inclusionAI/Realtime-Venus --local-dir . \
-  --include "Realtime-Venus-Omni/*" "Realtime-Venus-Audio/*" "config.yaml"
-# or:
+python -m pip install 'huggingface_hub>=0.34' 'PyYAML>=6.0'
+python download_models.py --model audio --local-dir .
+```
+
+The downloader reads the Hugging Face repository's root `config.yaml` and
+saves it alongside the complete `Realtime-Venus-Audio/` directory. It displays
+standard Hub progress bars and reuses cached files. See the
+[root guide](../../README.md#quick-start) for the `omni` and `all` selections
+and the Python download API.
+
+To use the optional ModelScope mirror, download Audio directly with its CLI:
+
+```bash
+python -m pip install modelscope
 modelscope download --model inclusionAI/Realtime-Venus --local_dir . \
-  --include "Realtime-Venus-Omni/*" "Realtime-Venus-Audio/*"
+  --include "Realtime-Venus-Audio/*"
 ```
 
 Install the pinned project dependencies from the repository root:
@@ -33,7 +43,9 @@ when the input is a video or another format that `librosa` cannot decode
 directly.
 
 The model path must be a local checkpoint directory containing `config.json`
-and the model weight shards. Both examples load the model in bfloat16 on CUDA.
+and the model weight shards. The download command above creates
+`./Realtime-Venus-Audio/`; use that directory for the `--model-path` examples
+below. Both examples load the model in bfloat16 on CUDA.
 The streaming example additionally loads the TTS module and therefore uses
 more GPU memory.
 
@@ -53,7 +65,8 @@ in this order:
 1. `--model-path`.
 2. `REALTIME_VENUS_MODEL_PATH`.
 3. `Realtime-Venus-Audio/` at the repository root when it contains `config.json`.
-4. The `Realtime-Venus/Realtime-Venus-Audio` Hugging Face repository.
+4. The shared downloader reads `inclusionAI/Realtime-Venus/config.yaml` and
+   downloads only Audio into the repository's `Realtime-Venus-Audio/` directory.
 
 When `--audio` is omitted, the script uses `assets/speech_in.mp4` inside the
 resolved model directory. Pass `--audio` explicitly when that asset is not

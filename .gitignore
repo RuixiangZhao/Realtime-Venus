@@ -10,6 +10,8 @@
 /Realtime-Venus-Audio/
 /Realtime-Venus-Omni/
 /output/
+/config.yaml
+/.cache/huggingface/
 frontend/**/output/
 .venv/
 venv/

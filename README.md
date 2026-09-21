@@ -47,17 +47,40 @@ The [paper](https://arxiv.org/html/2609.13814v1) describes the model family, dua
 
 ### 1. Install dependencies
 
-Standalone inference requires Python 3.10, CUDA, and FFmpeg. With the Hugging Face CLI or ModelScope CLI installed, run one of the following commands from the source repository root to download the Omni and Audio checkpoint directories:
+Standalone inference requires Python 3.10, CUDA, and FFmpeg. Run the following commands from the source repository root. First install the download helper's dependencies:
 
 ```bash
-huggingface-cli download inclusionAI/Realtime-Venus --local-dir . \
-  --include "Realtime-Venus-Omni/*" "Realtime-Venus-Audio/*" "config.yaml"
-# or:
+python -m pip install 'huggingface_hub>=0.34' 'PyYAML>=6.0'
+```
+
+The unified downloader reads the root `config.yaml` in the single Hugging Face repository [`inclusionAI/Realtime-Venus`](https://huggingface.co/inclusionAI/Realtime-Venus) to locate the model directories. Choose one download:
+
+| Models | Command |
+| --- | --- |
+| Omni only | `python download_models.py --model omni --local-dir .` |
+| Audio only | `python download_models.py --model audio --local-dir .` |
+| Both models | `python download_models.py --model all --local-dir .` |
+
+Omitting `--model` defaults to `all`. The downloader saves the root `config.yaml` and each selected model's complete directory under `--local-dir`, displays the standard Hugging Face Hub progress bars, and reuses cached files on later runs.
+
+The same downloader is available from Python. It returns the selected local model directories as `Path` objects:
+
+```python
+from download_models import download_models
+
+paths = download_models(model="omni", local_dir=".")
+model_dir = paths["omni"]
+```
+
+The ModelScope mirror is an optional alternative, downloaded directly with its own CLI:
+
+```bash
+python -m pip install modelscope
 modelscope download --model inclusionAI/Realtime-Venus --local_dir . \
   --include "Realtime-Venus-Omni/*" "Realtime-Venus-Audio/*"
 ```
 
-Then install the dependencies for your model:
+Then install the dependencies for your selected model:
 
 ```bash
 # Realtime-Venus-Omni
@@ -77,7 +100,7 @@ Then choose standalone inference or the online experience below.
 
 ### 2. Frontend Usage
 
-Download the model checkpoint from the links above and replace the example paths with your local directories.
+Use the local checkpoints downloaded above. With `--local-dir .`, they are in `./Realtime-Venus-Omni/` and `./Realtime-Venus-Audio/` for the models you selected. Replace the `/path/to/` placeholders below with those directories, or with your chosen download location.
 
 #### Realtime-Venus-Omni
 
@@ -171,6 +194,7 @@ Realtime-Venus/
 │   ├── install.py          # Isolated environment installation
 │   └── requirements.txt    # Model and application dependencies
 ├── assets/                 # Paper figures, report, and Demo screenshot
+├── download_models.py      # Download Omni, Audio, or both using the HF manifest
 ├── pyproject.toml          # Standalone Harness package
 ├── requirements.txt        # Shared dependency entry for inference examples
 ├── config.example.json     # Server configuration template

@@ -3,17 +3,16 @@
 
 import argparse
 import os
+import sys
 from pathlib import Path
 
 import librosa
 import torch
-from huggingface_hub import snapshot_download
 from transformers import AutoModel, AutoTokenizer, set_seed
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = SCRIPT_DIR.parent.parent
-HF_MODEL_ID = "Realtime-Venus/Realtime-Venus-Audio"
 DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant."
 
 
@@ -26,7 +25,12 @@ def resolve_model_dir(configured_path: str | None = None) -> Path:
     if (local_model / "config.json").is_file():
         return local_model
 
-    return Path(snapshot_download(repo_id=HF_MODEL_ID))
+    # Allow this standalone script to use the repository's shared downloader.
+    if str(PROJECT_DIR) not in sys.path:
+        sys.path.insert(0, str(PROJECT_DIR))
+    from download_models import download_models
+
+    return download_models(model="audio", local_dir=PROJECT_DIR)["audio"]
 
 
 def load_model(model_dir: Path):

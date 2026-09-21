@@ -47,12 +47,35 @@
 
 ### 1. 安装依赖
 
-独立推理需要 Python 3.10、CUDA 和 FFmpeg。安装 Hugging Face 或 ModelScope 命令行工具后，在源码仓库根目录任选下面的一条命令，下载 Omni 和 Audio 的模型目录：
+独立推理需要 Python 3.10、CUDA 和 FFmpeg。以下命令均在源码仓库根目录执行。首先安装下载器的依赖：
 
 ```bash
-huggingface-cli download inclusionAI/Realtime-Venus --local-dir . \
-  --include "Realtime-Venus-Omni/*" "Realtime-Venus-Audio/*" "config.yaml"
-# 或：
+python -m pip install 'huggingface_hub>=0.34' 'PyYAML>=6.0'
+```
+
+统一下载器读取同一个 Hugging Face 仓库 [`inclusionAI/Realtime-Venus`](https://huggingface.co/inclusionAI/Realtime-Venus) 根目录的 `config.yaml`，从中解析模型目录。按需选择下面的一条命令：
+
+| 下载内容 | 命令 |
+| --- | --- |
+| 仅 Omni | `python download_models.py --model omni --local-dir .` |
+| 仅 Audio | `python download_models.py --model audio --local-dir .` |
+| 两个模型 | `python download_models.py --model all --local-dir .` |
+
+省略 `--model` 时默认下载 `all`。下载器会将根目录的 `config.yaml` 和所选模型的完整目录保存到 `--local-dir`，显示标准 Hugging Face Hub 进度条，并在后续运行时复用缓存文件。
+
+也可以从 Python 调用同一个下载器，返回值包含所选模型的本地目录，类型为 `Path`：
+
+```python
+from download_models import download_models
+
+paths = download_models(model="omni", local_dir=".")
+model_dir = paths["omni"]
+```
+
+也可选择 ModelScope 镜像，直接使用其独立命令行工具下载：
+
+```bash
+python -m pip install modelscope
 modelscope download --model inclusionAI/Realtime-Venus --local_dir . \
   --include "Realtime-Venus-Omni/*" "Realtime-Venus-Audio/*"
 ```
@@ -77,7 +100,7 @@ bash install.sh
 
 ### 2. Frontend Usage
 
-从上方模型入口下载权重，将示例路径替换为本地目录。
+使用上文下载的本地权重。设置 `--local-dir .` 时，所选模型分别保存在 `./Realtime-Venus-Omni/` 与 `./Realtime-Venus-Audio/`。将下方 `/path/to/` 占位路径替换为这些目录，或你指定的下载位置。
 
 #### Realtime-Venus-Omni
 
@@ -171,6 +194,7 @@ Realtime-Venus/
 │   ├── install.py          # 独立环境安装
 │   └── requirements.txt    # 模型与应用依赖
 ├── assets/                 # 论文图片、报告与 Demo 截图
+├── download_models.py      # 读取 HF 清单，下载 Omni、Audio 或两者
 ├── pyproject.toml          # Harness 独立打包配置
 ├── requirements.txt        # 推理示例共用的依赖入口
 ├── config.example.json     # 服务器配置模板
