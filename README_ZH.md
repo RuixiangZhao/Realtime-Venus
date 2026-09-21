@@ -51,7 +51,7 @@
 
 ```bash
 huggingface-cli download inclusionAI/Realtime-Venus --local-dir . \
-  --include "Realtime-Venus-Omni/*" "Realtime-Venus-Audio/*"
+  --include "Realtime-Venus-Omni/*" "Realtime-Venus-Audio/*" "config.yaml"
 # 或：
 modelscope download --model inclusionAI/Realtime-Venus --local_dir . \
   --include "Realtime-Venus-Omni/*" "Realtime-Venus-Audio/*"

@@ -23,7 +23,7 @@ repository root to download the Omni and Audio checkpoint directories:
 
 ```bash
 huggingface-cli download inclusionAI/Realtime-Venus --local-dir . \
-  --include "Realtime-Venus-Omni/*" "Realtime-Venus-Audio/*"
+  --include "Realtime-Venus-Omni/*" "Realtime-Venus-Audio/*" "config.yaml"
 # or:
 modelscope download --model inclusionAI/Realtime-Venus --local_dir . \
   --include "Realtime-Venus-Omni/*" "Realtime-Venus-Audio/*"

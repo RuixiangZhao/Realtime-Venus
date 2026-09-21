@@ -51,7 +51,7 @@ Standalone inference requires Python 3.10, CUDA, and FFmpeg. With the Hugging Fa
 
 ```bash
 huggingface-cli download inclusionAI/Realtime-Venus --local-dir . \
-  --include "Realtime-Venus-Omni/*" "Realtime-Venus-Audio/*"
+  --include "Realtime-Venus-Omni/*" "Realtime-Venus-Audio/*" "config.yaml"
 # or:
 modelscope download --model inclusionAI/Realtime-Venus --local_dir . \
   --include "Realtime-Venus-Omni/*" "Realtime-Venus-Audio/*"
