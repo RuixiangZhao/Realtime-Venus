@@ -19,6 +19,7 @@ from demos.model.adapter import (
     RealtimeVenusOmniAdapter,
 )
 from demos.model.prompts import REALTIME_VENUS_SYSTEM_PROMPT
+from demos.variants import model_name
 
 _LOG = logging.getLogger("demos.model.server")
 
@@ -29,6 +30,7 @@ class _ServerConfig:
     ref_audio_path: str | None = None
     prompt_wav_path: str | None = None
     memory_minutes: int = 40
+    model_type: str = "omni"
     model_revision: str = "realtime-venus-omni-v1"
     model_name: str = "Realtime-Venus-Omni"
     system_prompt: str | None = None
@@ -42,6 +44,7 @@ async def _build_adapter(config: _ServerConfig) -> RealtimeVenusOmniAdapter:
     return await RealtimeVenusOmniAdapter.load_real(
         config.model_path,
         memory_minutes=config.memory_minutes,
+        model_type=config.model_type,
         ref_audio_path=config.ref_audio_path,
         prompt_wav_path=config.prompt_wav_path or config.ref_audio_path,
         model_revision=config.model_revision,
@@ -198,8 +201,9 @@ def _parse_args(argv: list[str] | None = None) -> _ServerConfig:
         "--prompt-wav", default=None, help="optional prompt_wav_path for token2wav init"
     )
     p.add_argument("--memory-minutes", type=int, default=40)
-    p.add_argument("--model-revision", default="realtime-venus-omni-v1")
-    p.add_argument("--model-name", default="Realtime-Venus-Omni")
+    p.add_argument("--model-type", choices=("audio", "omni"), default="omni")
+    p.add_argument("--model-revision", default=None)
+    p.add_argument("--model-name", default=None)
     p.add_argument(
         "--system-prompt",
         default=None,
@@ -233,8 +237,9 @@ def _parse_args(argv: list[str] | None = None) -> _ServerConfig:
         ref_audio_path=a.ref_audio,
         prompt_wav_path=a.prompt_wav,
         memory_minutes=a.memory_minutes,
-        model_revision=a.model_revision,
-        model_name=a.model_name,
+        model_type=a.model_type,
+        model_revision=a.model_revision or f"realtime-venus-{a.model_type}-v1",
+        model_name=a.model_name or model_name(a.model_type),
         system_prompt=system_prompt,
         default_timeout_s=a.default_timeout_s,
         host=a.host,

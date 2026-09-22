@@ -9,12 +9,14 @@ import uuid
 from contextlib import suppress
 from pathlib import Path
 
+from harness.core.speech import limit_spoken_sentences
+
 import anyio
 
 from harness.bridge.host import AudioDisposition, VenusOmniServingHost
 from harness.core.models import AudioChunk, VideoFrame
 
-from .media import video_buckets
+from .media import video_buckets, audio_buckets
 from .protocol import decode_media, playback_message
 
 logger = logging.getLogger(__name__)
@@ -69,7 +71,7 @@ class WebAgentSession:
         try:
             if self.mode not in {"omni", "audio"}:
                 raise ValueError("unsupported input mode")
-            if self.input_source not in {"live", "video"}:
+            if self.input_source not in ({"live", "audio_file"} if self.mode == "audio" else {"live", "video"}):
                 raise ValueError("unsupported media source")
             self.resources = await self.factory(
                 mode=self.mode, settings_path=self.settings_path
@@ -171,6 +173,12 @@ class WebAgentSession:
                 ),
                 "",
             )
+            final_feedback = next(
+                (record.get("text", "") for record in reversed(work.get("feedback_records", []))
+                 if record.get("terminal") and record.get("text")),
+                "",
+            )
+            item["result_text"] = limit_spoken_sentences(final_feedback or item["result_text"], 3)
             item["artifacts"] = [
                 {
                     "index": index,
@@ -288,13 +296,23 @@ class WebAgentSession:
             raise ValueError("未知 Web 命令")
 
     async def upload_video(self, stream):
-        if self._closing or not self.host or self.input_source != "video":
+        if self.input_source != "video" or self.mode != "omni":
             raise ValueError("请先开始视频会话")
+        await self._upload_media(stream)
+
+    async def upload_audio(self, stream):
+        if self.input_source != "audio_file" or self.mode != "audio":
+            raise ValueError("请先开始音频文件会话")
+        await self._upload_media(stream)
+
+    async def _upload_media(self, stream):
+        if self._closing or not self.host or self.input_source == "live":
+            raise ValueError("请先开始文件会话")
         if self._upload_busy:
-            raise ValueError("请等待当前视频处理完成")
+            raise ValueError("请等待当前文件处理完成")
         self._upload_busy = True
         temp = tempfile.TemporaryDirectory(prefix="venus-upload-")
-        path = Path(temp.name) / "input.mp4"
+        path = Path(temp.name) / "input.media"
         transferred = False
         try:
             if self._video_idle_task:
@@ -308,10 +326,10 @@ class WebAgentSession:
                         raise ValueError("会话已结束")
                     size += len(chunk)
                     if size > MAX_UPLOAD_BYTES:
-                        raise ValueError("视频大小不能超过 200 MB")
+                        raise ValueError("文件大小不能超过 200 MB")
                     await asyncio.to_thread(output.write, chunk)
             if not size or self._closing:
-                raise ValueError("视频为空或会话已结束")
+                raise ValueError("文件为空或会话已结束")
             self._video_task = asyncio.create_task(self._feed_video(path, temp))
             transferred = True
         finally:
@@ -320,11 +338,11 @@ class WebAgentSession:
                 self._upload_busy = False
 
     async def _feed_video(self, path, temp):
-        iterator = video_buckets(path)
+        iterator = audio_buckets(path) if self.input_source == "audio_file" else video_buckets(path)
         sent = 0
         try:
             await self.send(
-                {"type": "video_status", "state": "processing", "seconds": 0}
+                {"type": "media_status", "state": "processing", "seconds": 0}
             )
             started = asyncio.get_running_loop().time()
             while True:
@@ -348,13 +366,13 @@ class WebAgentSession:
                 self._audio_end = start + 1000
                 sent += 1
                 await self.send(
-                    {"type": "video_status", "state": "feeding", "seconds": sent}
+                    {"type": "media_status", "state": "feeding", "seconds": sent}
                 )
                 await asyncio.sleep(
                     max(0, started + sent - asyncio.get_running_loop().time())
                 )
             if not sent:
-                raise ValueError("视频没有可解码内容")
+                raise ValueError("文件没有可解码内容")
             # Keep the model clock moving briefly after EOF so the last spoken
             # question has time to receive a reply.
             for _ in range(VIDEO_TAIL_SECONDS):
@@ -365,7 +383,7 @@ class WebAgentSession:
                 self._audio_end = start + 1000
                 await asyncio.sleep(1)
             await self.send(
-                {"type": "video_status", "state": "complete", "seconds": sent}
+                {"type": "media_status", "state": "complete", "seconds": sent}
             )
             # Duplex generation needs a new input unit for every output unit,
             # including replies and backend work that finish after the file.
@@ -373,14 +391,14 @@ class WebAgentSession:
         except asyncio.CancelledError:
             raise
         except Exception:
-            logger.exception("Uploaded video failed")
+            logger.exception("Uploaded media failed")
             with suppress(Exception):
                 await self.send(
                     {
-                        "type": "video_status",
+                        "type": "media_status",
                         "state": "error",
                         "seconds": sent,
-                        "error": "视频处理失败，请检查视频格式和服务日志",
+                        "error": "媒体处理失败，请检查文件格式和服务日志",
                     }
                 )
         finally:

@@ -1,8 +1,0 @@
-{
-  "model_path": "model_weight",
-  "reference_audio": "",
-  "model_port": 8031,
-  "web_port": 8032,
-  "web_host": "127.0.0.1",
-  "memory_minutes": 40
-}

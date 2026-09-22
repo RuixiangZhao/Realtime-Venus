@@ -14,12 +14,14 @@ from fastapi.staticfiles import StaticFiles
 from .configuration import WebConfiguration
 from .resources import real_resources
 from .session import WebAgentSession
+from demos.variants import model_name
 
 
 def create_app(
-    *, settings_path, tokenizer_path, model_server_url="http://127.0.0.1:8031"
+    *, settings_path, tokenizer_path, model_server_url="http://127.0.0.1:8031", model_type="omni", demo_path=None
 ):
-    configuration = WebConfiguration(settings_path)
+    frontend_model = model_name(model_type)
+    configuration = WebConfiguration(settings_path, demo_path=demo_path)
     static = Path(__file__).resolve().parents[1] / "static"
     sessions = {}
     app = FastAPI(
@@ -58,7 +60,7 @@ def create_app(
         try:
             return Response(
                 json.dumps(
-                    {**configuration.public(), "active_sessions": len(sessions)}
+                    {**await asyncio.to_thread(configuration.public), "active_sessions": len(sessions)}
                 ),
                 media_type="application/json",
                 headers={"Cache-Control": "no-store"},
@@ -90,7 +92,7 @@ def create_app(
                 return Response(
                     json.dumps(result), status_code=422, media_type="application/json"
                 )
-            return configuration.public()
+            return await asyncio.to_thread(configuration.public)
         except RuntimeError as exc:
             raise HTTPException(409, str(exc)) from None
         except (ValueError, TypeError, OSError, KeyError):
@@ -99,10 +101,12 @@ def create_app(
             ) from None
 
     @app.get("/api/status")
-    async def status():
+    async def status(fresh: bool = False):
         return {
-            "model": "Realtime-Venus-Omni",
-            "configured": configuration.status(),
+            "model": frontend_model,
+            "model_type": model_type,
+            "input_modes": ["audio", "audio_file"] if model_type == "audio" else ["camera", "video"],
+            "configured": await asyncio.to_thread(configuration.status, force_login=fresh),
             "busy": bool(sessions),
             "upload_limit_mb": 200,
         }
@@ -113,7 +117,18 @@ def create_app(
         if origin and urlsplit(origin).netloc != websocket.headers.get("host"):
             await websocket.close(code=1008)
             return
-        if sessions or not configuration.status():
+        mode = websocket.query_params.get("mode", model_type)
+        source = websocket.query_params.get("source", "live")
+        valid_source = {"live", "audio_file"} if model_type == "audio" else {"live", "video"}
+        if mode != model_type or source not in valid_source:
+            await websocket.accept()
+            await websocket.send_json({"type": "fatal_error", "code": "input_mode", "error": "Input source does not match the deployed model"})
+            await websocket.close(code=1008)
+            return
+        revision = configuration.revision()
+        ready = False if sessions else await asyncio.to_thread(configuration.status, force_login=True)
+        # Recheck the slot after awaiting the login probe: another client may have entered.
+        if sessions or not ready or revision != configuration.revision():
             await websocket.accept()
             await websocket.send_json(
                 {
@@ -132,9 +147,11 @@ def create_app(
                 real_resources,
                 server_url=model_server_url,
                 tokenizer_path=tokenizer_path,
+                model_type=model_type,
+                demo_path=demo_path,
             ),
-            mode=websocket.query_params.get("mode", "omni"),
-            input_source=websocket.query_params.get("source", "live"),
+            mode=mode,
+            input_source=source,
             settings_path=str(configuration.path),
         )
         sessions[session.session_id] = session
@@ -148,6 +165,15 @@ def create_app(
         session = authorized_session(sid, request)
         try:
             await session.upload_video(request.stream())
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from None
+        return {"accepted": True}
+
+    @app.post("/api/sessions/{sid}/audio", status_code=202)
+    async def upload_audio(sid: str, request: Request):
+        session = authorized_session(sid, request)
+        try:
+            await session.upload_audio(request.stream())
         except ValueError as exc:
             raise HTTPException(400, str(exc)) from None
         return {"accepted": True}

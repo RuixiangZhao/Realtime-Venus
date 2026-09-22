@@ -66,6 +66,8 @@ class StackSupervisor:
             "pid": os.getpid(),
             "start_ticks": process_start(os.getpid()),
             "status": "starting",
+            "model_type": config.model_type,
+            "model_path": str(config.model_path),
             "model_port": config.model_port,
             "web_port": config.web_port,
         }

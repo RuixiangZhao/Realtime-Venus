@@ -1,8 +1,9 @@
-"""Connection settings for the configured Codex backend."""
+"""Model-call settings for Codex and optional official Gemini roles."""
 
 import math
 import os
-from dataclasses import dataclass
+import re
+from dataclasses import dataclass, field
 
 
 REASONING_EFFORTS = frozenset({"minimal", "low", "medium", "high", "xhigh"})
@@ -30,9 +31,14 @@ class ModelCallConfig:
     model: str | None = None
     effort: str = "low"
     timeout_s: float = 180.0
+    provider: str = "codex"
 
     def __post_init__(self):
         validate_model_options(self.model, self.effort)
+        if self.provider not in {"codex", "gemini"}:
+            raise ValueError("Provider must be codex or gemini")
+        if self.provider == "gemini" and self.model:
+            validate_gemini_model(self.model)
         if (
             isinstance(self.timeout_s, bool)
             or not isinstance(self.timeout_s, (int, float))
@@ -52,6 +58,25 @@ class RoutingConfig(ModelCallConfig):
     def __post_init__(self):
         ModelCallConfig.__post_init__(self)
         validate_routing_mode(self.mode)
+
+
+def validate_gemini_model(model):
+    if not isinstance(model, str) or not re.fullmatch(r"gemini-[A-Za-z0-9._-]+", model):
+        raise ValueError("Use an official Gemini model ID, not a URL or proxy model")
+
+
+@dataclass(frozen=True, slots=True)
+class GeminiConfig:
+    model: str = "gemini-flash-latest"
+    api_key: str = field(default="", repr=False)
+
+    def __post_init__(self):
+        validate_gemini_model(self.model)
+        if not isinstance(self.api_key, str) or any(c.isspace() for c in self.api_key):
+            raise ValueError("Invalid Gemini API key")
+
+    def resolved_key(self):
+        return self.api_key or os.getenv("GEMINI_API_KEY", "") or os.getenv("GOOGLE_API_KEY", "")
 
 
 @dataclass(frozen=True, slots=True)

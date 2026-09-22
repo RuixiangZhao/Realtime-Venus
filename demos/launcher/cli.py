@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import argparse
 import fcntl
 import getpass
 import json
@@ -17,32 +16,46 @@ from pathlib import Path
 from .config import (
     LaunchConfig,
     checked_file,
-    checkpoint_directory,
     ensure_ports_available,
 )
 from .supervisor import StackSupervisor, read_state
+from .variants import select_checkpoint
+from .options import parse_launch_options
+from demos.variants import model_name
 
 
 def setup_backend(config: LaunchConfig, allow_login: bool) -> None:
-    from demos.settings import save_setup
+    from demos.settings import UserSetup
     from demos.server.configuration import WebConfiguration
 
-    configuration = WebConfiguration(config.settings)
+    configuration = WebConfiguration(config.settings, demo_path=getattr(config, "demo_path", None))
     setup = configuration.load()
+    settings_changed = False
     if not config.settings.exists():
-        binary = os.getenv("GENERAL_CODEX_BINARY") or shutil.which("codex")
-        if not binary:
-            candidate = config.runtime / "bin/codex"
-            binary = str(candidate) if candidate.is_file() else None
-        if not binary:
-            raise RuntimeError("Codex executable is missing. Run bash install.sh.")
-        setup.data["codex"]["command"] = [binary, "app-server"]
-        setup.data["workspace"] = str(config.runtime / "workspace")
-        # Reconstruct derived settings after filling startup defaults.
-        from demos.settings import UserSetup
+        setup.data["workspace"] = ""
+        settings_changed = True
 
+    configured_binary = setup.general.command[0]
+    candidates = (
+        os.getenv("GENERAL_CODEX_BINARY"),
+        configured_binary,
+        shutil.which("codex"),
+        str(config.runtime / "bin/codex"),
+    )
+    binary = next(
+        (resolved for candidate in candidates if candidate and (resolved := shutil.which(candidate))),
+        None,
+    )
+    if not binary:
+        raise RuntimeError("Codex executable is missing. Run bash install.sh.")
+    if binary != configured_binary:
+        setup.data["codex"]["command"] = [binary, *setup.general.command[1:]]
+        settings_changed = True
+
+    if settings_changed:
+        # Reconstruct derived settings after filling or repairing startup defaults.
         setup = UserSetup(setup.data, config.settings)
-    check = setup.check(web=True)
+    check = setup.check(web=False)
     if not check["ok"]:
         raise RuntimeError("; ".join(check["problems"]))
     binary = setup.general.command[0]
@@ -56,14 +69,15 @@ def setup_backend(config: LaunchConfig, allow_login: bool) -> None:
             )
         print("Complete Codex device login in your local browser.", flush=True)
         subprocess.run([binary, "login", "--device-auth"], check=True)
-    setup.workspace.mkdir(parents=True, exist_ok=True)
-    if not config.settings.exists():
-        save_setup(setup.data, config.settings)
+    if setup.data["workspace"]:
+        setup.workspace.mkdir(parents=True, exist_ok=True)
+    if settings_changed:
+        configuration.save_startup(setup.data)
 
 
 def show_access(config: LaunchConfig) -> None:
     print(
-        f"\nRealtime-Venus-Omni API: http://127.0.0.1:{config.model_port}", flush=True
+        f"\n{model_name(config.model_type)} API: http://127.0.0.1:{config.model_port}", flush=True
     )
     print(f"Realtime-Venus-Harness: http://localhost:{config.web_port}", flush=True)
     ssh = os.getenv("SSH_CONNECTION", "").split()
@@ -73,79 +87,13 @@ def show_access(config: LaunchConfig) -> None:
         f"  ssh -N -L {config.web_port}:127.0.0.1:{config.web_port} {getpass.getuser()}@{server}",
         flush=True,
     )
-    print("Choose video upload or microphone/camera in the browser.", flush=True)
+    print("Choose microphone or audio upload." if config.model_type == "audio" else "Choose camera with microphone or video upload.", flush=True)
     print(f"Logs: {config.runtime}/logs; stop: bash start.sh --stop", flush=True)
 
 
 def _run(argv=None):
     root = Path(os.getenv("VENUS_ROOT", Path.cwd())).expanduser().resolve()
-    config_file = root / "config.json"
-    options = json.loads(config_file.read_text()) if config_file.exists() else {}
-    allowed = {
-        "model_path",
-        "reference_audio",
-        "model_port",
-        "web_port",
-        "web_host",
-        "memory_minutes",
-    }
-    if not isinstance(options, dict) or options.keys() - allowed:
-        raise ValueError("Unknown deployment settings in config.json")
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--model-path",
-        default=os.getenv(
-            "MODEL_PATH", options.get("model_path", str(root / "model_weight"))
-        ),
-    )
-    parser.add_argument(
-        "--ref-audio", default=os.getenv("REF_AUDIO") or options.get("reference_audio")
-    )
-    parser.add_argument(
-        "--model-port",
-        type=int,
-        default=int(os.getenv("VENUS_MODEL_PORT", options.get("model_port", 8031))),
-    )
-    parser.add_argument(
-        "--web-port",
-        type=int,
-        default=int(os.getenv("VENUS_WEB_PORT", options.get("web_port", 8032))),
-    )
-    parser.add_argument(
-        "--host",
-        default=os.getenv("VENUS_WEB_HOST", options.get("web_host", "127.0.0.1")),
-    )
-    parser.add_argument(
-        "--memory-minutes",
-        type=int,
-        default=int(
-            os.getenv("VENUS_MEMORY_MINUTES", options.get("memory_minutes", 40))
-        ),
-    )
-    parser.add_argument("--startup-timeout", type=float, default=600)
-    parser.add_argument(
-        "--no-login",
-        action="store_true",
-        help="Fail immediately if Codex is not authenticated",
-    )
-    actions = parser.add_mutually_exclusive_group()
-    actions.add_argument(
-        "--detach",
-        action="store_true",
-        help="Wait until ready, then leave both services running",
-    )
-    actions.add_argument(
-        "--stop", action="store_true", help="Stop only the stack owned by this checkout"
-    )
-    actions.add_argument(
-        "--status", action="store_true", help="Show process ownership and startup state"
-    )
-    actions.add_argument(
-        "--check",
-        action="store_true",
-        help="Validate assets, ports, CUDA and backend without starting services",
-    )
-    args = parser.parse_args(argv)
+    parser, args, options, launch_argv = parse_launch_options(root, argv)
     runtime = root / "runtime"
     runtime.mkdir(exist_ok=True)
     state = read_state(runtime / "stack.json")
@@ -171,7 +119,11 @@ def _run(argv=None):
         parser.error(
             "This checkout already owns a running stack. Use --status or --stop."
         )
-    model = checkpoint_directory(root / Path(args.model_path))
+    model = select_checkpoint(
+        root, args.model_type,
+        explicit=args.model_path,
+        configured=None,
+    )
     ref = (
         checked_file(root / Path(args.ref_audio))
         if args.ref_audio
@@ -188,6 +140,9 @@ def _run(argv=None):
         args.web_port,
         args.memory_minutes,
         args.startup_timeout,
+        args.model_type,
+        harness_path=Path(args.harness_config) if args.harness_config else None,
+        demo_path=args.demo_config,
     )
     if config.memory_minutes <= 0 or config.startup_timeout <= 0:
         parser.error("Memory duration and startup timeout must be positive")
@@ -209,7 +164,7 @@ def _run(argv=None):
         return
     if args.detach:
         child_args = [
-            a for a in (sys.argv[1:] if argv is None else argv) if a != "--detach"
+            a for a in launch_argv if a != "--detach"
         ]
         (runtime / "logs").mkdir(exist_ok=True)
         with (runtime / "logs/stack.log").open("ab", buffering=0) as log:
@@ -243,6 +198,8 @@ def _run(argv=None):
             config.model_python,
             "-m",
             "demos.model.server",
+            "--model-type",
+            config.model_type,
             "--model-path",
             str(model),
             "--ref-audio",
@@ -258,6 +215,8 @@ def _run(argv=None):
             config.web_python,
             "-m",
             "demos.server.cli",
+            "--model-type",
+            config.model_type,
             "--model-server",
             f"http://127.0.0.1:{config.model_port}",
             "--tokenizer-path",
@@ -269,8 +228,10 @@ def _run(argv=None):
             "--port",
             str(config.web_port),
         ]
+        if config.demo_path:
+            web_command += ["--demo-config", str(config.demo_path)]
         print(
-            "Loading Realtime-Venus-Omni; the web application starts after the model is ready.",
+            f"Loading {model_name(config.model_type)}; the web application starts after the model is ready.",
             flush=True,
         )
         StackSupervisor(config, model_command, web_command).run(

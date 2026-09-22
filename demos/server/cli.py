@@ -14,10 +14,14 @@ def main():
     parser.add_argument("--model-server", default="http://127.0.0.1:8031")
     parser.add_argument("--tokenizer-path", required=True)
     parser.add_argument("--config", required=True)
+    parser.add_argument("--model-type", choices=("audio", "omni"), default="omni")
+    parser.add_argument("--demo-config", help="Demo deployment JSON for frontend settings")
     args = parser.parse_args()
     uvicorn.run(
         create_app(
             settings_path=args.config,
+            demo_path=args.demo_config,
+            model_type=args.model_type,
             tokenizer_path=args.tokenizer_path,
             model_server_url=args.model_server,
         ),

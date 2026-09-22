@@ -13,6 +13,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from harness.core.models import DelegateResult
+from harness.core.speech import limit_spoken_sentences
 
 from .messages import local_text
 from .models import WorkState
@@ -20,6 +21,7 @@ from .models import WorkState
 
 @dataclass(frozen=True)
 class FeedbackConfig:
+    proactive_progress: bool = False
     progress_interval_s: float = 30
     progress_timeout_s: float = 15
     read_retry_s: float = 30
@@ -34,6 +36,8 @@ class FeedbackConfig:
     journal_path: str | None = None
 
     def __post_init__(self):
+        if type(self.proactive_progress) is not bool:
+            raise ValueError("proactive_progress must be a boolean")
         for name in (
             "progress_interval_s",
             "progress_timeout_s",
@@ -191,18 +195,18 @@ class WorkFeedbackController:
             return work.fault["message"] + local_text("已安排有限重试。", language)
         # State takes precedence over a report from an earlier execution phase.
         defaults = {
-            "queued": "任务还在等待处理，尚未开始执行。",
-            "routing": "正在确定任务的处理方式，还没有开始执行。",
-            "waiting_agent": "正在等待关联任务完成，当前任务尚未开始执行。",
-            "polish": "后台已返回结果，正在整理回复。",
-            "multimodal": "已进入多模态处理阶段，暂时还没有返回结果。",
-            "skill": "专用任务仍在执行，暂时还没有返回阶段结果。",
+            "queued": "还在排队，轮到后就开始处理。",
+            "routing": "我先确认一下怎么处理。",
+            "waiting_agent": "等上一项做完，就接着处理这项。",
+            "polish": "结果有了，我整理一下就告诉你。",
+            "multimodal": "我正在看你提供的内容。",
+            "skill": "我还在处理，有结果就告诉你。",
         }
         if work.phase in defaults:
             return local_text(defaults[work.phase], language)
         if work.progress:
             return work.progress["text"]
-        return local_text("后台任务仍在等待执行结果，暂时没有新的阶段进展。", language)
+        return local_text("我还在处理，有结果就告诉你。", language)
 
     def make_notice(self, request, work, text=None):
         now = time.time_ns() // 1_000_000
@@ -260,7 +264,7 @@ class WorkFeedbackController:
         result = replace(
             result,
             feedback_id=result.work_id,
-            spoken_text=text,
+            spoken_text=limit_spoken_sentences(text, 3),
             metadata={
                 **result.metadata,
                 "managed_feedback": True,
@@ -278,6 +282,9 @@ class WorkFeedbackController:
         return result
 
     async def watch(self, request, publish):
+        # Consent gates automatic feedback only; queries and final results stay available.
+        if not self.config.proactive_progress:
+            return
         key = request.work_id
         self._last[key] = time.monotonic()
         signal = self._signals.setdefault(key, asyncio.Event())
@@ -304,7 +311,7 @@ class WorkFeedbackController:
                 if due:
                     self._poll_last[key] = time.monotonic()
                     generation = self.reporter.query_generation.get(key, 0)
-                    text = await self.reporter.text(request, work)
+                    text = await self.reporter.text(request, work, proactive=True)
                     if (
                         text is None
                         or work.state not in {WorkState.QUEUED, WorkState.RUNNING}
@@ -363,7 +370,7 @@ class WorkFeedbackController:
             ):
                 revision = work.revision
                 text = (
-                    await self.reporter.text(request, work)
+                    await self.reporter.text(request, work, proactive=True)
                     if self.reporter
                     else self.describe(work)
                 )

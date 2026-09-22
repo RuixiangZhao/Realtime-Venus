@@ -221,12 +221,14 @@ class RealtimeVenusOmniAdapter:
         system_prompt: str | None = None,
         chunk_seconds: float = 1.0,
         max_new_speak_tokens_per_chunk: int = 50,
+        model_type: str = "omni",
     ) -> "RealtimeVenusOmniAdapter":
         model, tokenizer, ref_audio = await asyncio.to_thread(
             _load_real_blocking,
             model_path,
             memory_minutes,
             ref_audio_path,
+            model_type,
         )
         special = {
             token: int(tokenizer.convert_tokens_to_ids(token))
@@ -348,6 +350,8 @@ class RealtimeVenusOmniAdapter:
         )
 
     async def append_video_frame(self, req: dict[str, Any]) -> dict[str, Any]:
+        if self._model_name == "Realtime-Venus-Audio":
+            raise Unsupported("The Audio checkpoint does not accept video frames")
         sess = self._require(req)
         event_seq = int(req["event_seq"])
         async with self._turn_lock:
@@ -776,23 +780,27 @@ class _Bucket:
 
 
 def _load_real_blocking(
-    model_path: str, memory_minutes: int, ref_audio_path: str | None
+    model_path: str, memory_minutes: int, ref_audio_path: str | None, model_type: str = "omni"
 ):
     import librosa
     import numpy as np
     import torch
     from transformers import AutoModel, AutoTokenizer
 
+    if model_type not in {"omni", "audio"}:
+        raise ValueError("Unknown model type")
     model = AutoModel.from_pretrained(
         model_path,
         trust_remote_code=True,
         local_files_only=True,
         attn_implementation="sdpa",
         torch_dtype=torch.bfloat16,
+        **({"init_vision": False, "init_audio": True, "init_tts": True} if model_type == "audio" else {}),
     )
     model.eval().cuda()
-    model.use_memory(memory_minutes=memory_minutes)
-    model = model.as_duplex()
+    if model_type == "omni":
+        model.use_memory(memory_minutes=memory_minutes)
+    model = model.as_duplex(generate_audio=True) if model_type == "audio" else model.as_duplex()
     tokenizer = getattr(model, "tokenizer", None)
     if tokenizer is None:
         tokenizer = AutoTokenizer.from_pretrained(

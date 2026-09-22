@@ -147,27 +147,23 @@ python frontend/Realtime-Venus-Audio/audio_duplex_chat.py \
 
 ### 3. 与 Realtime-Venus 实时对话
 
-在线 Duplex 体验**至少需要一张 NVIDIA A100**。将完整的 Omni 权重放入 `model_weight/`，然后启动：
+在线 Duplex Demo 需要**至少一张 NVIDIA A100 GPU**。在根目录 [`config.json`](config.json) 配置前端模型，在 [`harness/config.json`](harness/config.json) 配置任务执行；Demo 通过 `harness.config` 引用 Harness 配置。
+
+按 [Demo 配置说明](demos/README_ZH.md#两份配置文件)和 [Harness 配置说明](harness/README_ZH.md#配置文件)填写后启动：
 
 ```bash
-bash start.sh
+bash start.sh --config config.json
 ```
 
-已有权重位于其他目录时：
+`model.type` 选择 `audio` 时提供麦克风和音频上传，选择 `video`（也接受 `omni`）时提供摄像头加麦克风和视频上传。将 `model.path` 指向对应的完整权重。若提示则完成 Codex 登录；模型与网页的默认端口分别为 **8031** 和 **8032**。
 
-```bash
-bash start.sh --model-path /path/to/Realtime-Venus-Omni
-```
-
-如出现 Codex 登录提示，按提示完成登录。启动器会启动 **8031** 端口的模型 API 和 **8032** 端口的网页服务。
-
-在远程服务器上运行时，在本地电脑保持以下 SSH 隧道，将 `user@server` 替换为你的 SSH 登录地址：
+在本地电脑保持以下隧道运行，将 `user@server` 替换为自己的 SSH 登录地址：
 
 ```bash
 ssh -N -L 8032:127.0.0.1:8032 user@server
 ```
 
-打开 [http://localhost:8032](http://localhost:8032)，选择**语音、摄像头与麦克风、视频上传**中的一种模式，开始对话。权重目录、配置与服务管理见 [Demo 文档](demos/README_ZH.md)。
+打开 [http://localhost:8032](http://localhost:8032)，完成 Settings 后开始对话。服务管理详见 [Demo 文档](demos/README_ZH.md)。
 
 ### 4. Android 演示应用（Beta）
 
@@ -201,7 +197,7 @@ Realtime-Venus/
 ├── download_models.py      # 读取 HF 清单，下载 Omni、Audio 或两者
 ├── pyproject.toml          # Harness 独立打包配置
 ├── requirements.txt        # 推理示例共用的依赖入口
-├── config.example.json     # 服务器配置模板
+├── config.json             # 前端模型、网页服务与 Harness 配置路径
 └── install.sh / start.sh    # Demo 安装、启动、状态查询与停止
 ```
 

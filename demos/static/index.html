@@ -14,7 +14,7 @@
     />
     <title>Realtime Venus — Stay in the moment</title>
     <link id="brand-icon" rel="icon" type="image/png" href="/static/venus-logo.png" />
-    <link rel="stylesheet" href="/static/style.css" />
+    <link rel="stylesheet" href="/static/style.css?v=20260921-model-modes" />
   </head>
   <body data-phase="idle" data-mode="audio">
     <div class="atmosphere" aria-hidden="true">
@@ -145,14 +145,14 @@
     </header>
     <main class="experience" id="experience">
       <div class="introduction">
-        <p class="eyebrow"><span></span>REALTIME-VENUS-OMNI</p>
+        <p class="eyebrow"><span></span><b id="frontend-model-name" style="font-weight:inherit">REALTIME-VENUS</b></p>
         <h1>
           <span data-i18n="headline">Stay in the moment.</span><br /><em
             data-i18n="headlineAccent"
             >We’ll take it further.</em
           >
         </h1>
-        <p class="lede" data-i18n="intro">
+        <p class="lede" data-media-key="intro">
           A conversation that sees, listens, and gets things done.
         </p>
       </div>
@@ -166,6 +166,7 @@
         </div>
         <div id="media-preview" class="media-preview" hidden>
           <video id="preview-video" muted playsinline></video>
+          <audio id="preview-audio" muted controls hidden></audio>
           <div class="preview-top">
             <span class="preview-badge"
               ><i></i
@@ -176,7 +177,7 @@
               id="replace-video"
               class="subtle-button"
               hidden
-              data-i18n="replaceVideo"
+              data-media-key="replaceVideo"
             >
               Change video
             </button>
@@ -196,8 +197,8 @@
             ><svg class="icon"><use href="#i-upload" /></svg
           ></span>
           <strong data-i18n="dropTitle">Bring a moment to Venus</strong>
-          <span data-i18n="dropHint">Drop a video here, or choose a file</span>
-          <small data-i18n="dropTypes">MP4, MOV or WebM · up to 200 MB</small>
+          <span data-media-key="dropHint">Drop a video here, or choose a file</span>
+          <small data-media-key="dropTypes">MP4, MOV or WebM · up to 200 MB</small>
         </label>
         <input id="video-file" type="file" accept="video/*" hidden />
       </section>
@@ -237,11 +238,16 @@
             <svg class="icon"><use href="#i-camera" /></svg
             ><span data-i18n="cameraMode">Camera</span>
           </button>
-          <button class="mode-button" data-mode="video" aria-pressed="false">
+          <button class="mode-button" data-mode="file" aria-pressed="false">
             <svg class="icon"><use href="#i-upload" /></svg
-            ><span data-i18n="videoMode">Video</span>
+            ><span data-media-key="videoMode">Video</span>
           </button>
         </div>
+        <aside id="setup-banner" class="setup-banner" hidden>
+          <div><strong data-i18n="setupTitle">Finish Settings before your first conversation</strong>
+            <p data-i18n="setupIntro">A few required settings are missing. Open Settings to see what to complete.</p></div>
+          <button id="complete-settings" class="secondary-button" data-i18n="completeSettings">Complete Settings</button>
+        </aside>
         <div class="session-controls">
           <button
             id="mute-mic"
@@ -364,14 +370,11 @@
     <dialog
       id="settings-dialog"
       class="dialog settings-dialog"
-      aria-labelledby="settings-title"
+      aria-label="Settings" data-label="settings"
     >
       <div class="dialog-heading">
         <div>
           <p class="eyebrow" data-i18n="makeItYours">MAKE IT YOURS</p>
-          <h2 id="settings-title" data-i18n="settingsTitle">
-            A comfortable connection.
-          </h2>
         </div>
         <button
           class="icon-button dialog-close"
@@ -381,7 +384,23 @@
           <svg class="icon"><use href="#i-close" /></svg>
         </button>
       </div>
-      <form id="settings-form">
+      <section id="settings-guidance" class="settings-guidance" role="status" hidden>
+        <strong data-i18n="setupTitle">Finish Settings before your first conversation</strong>
+        <p id="settings-guidance-copy"></p>
+        <ul id="settings-issues"></ul>
+      </section>
+      <section id="codex-login-panel" class="settings-guidance">
+        <strong data-i18n="codexLoginTitle">Codex login on the server</strong>
+        <p id="codex-login-status" role="status"></p>
+        <p id="codex-login-help" data-i18n="codexLoginHelp" hidden>On the server, run codex login --device-auth using your configured Codex executable, complete login, then recheck here.</p>
+        <button id="recheck-codex" type="button" class="secondary-button" data-i18n="codexRecheck">Recheck login</button>
+      </section>
+      <form id="settings-form" novalidate>
+        <label><span data-i18n="workspace">Task workspace</span>
+          <input id="backend-workspace" required autocomplete="off" spellcheck="false" aria-describedby="workspace-hint" />
+        </label>
+        <p id="workspace-hint" class="field-hint" data-i18n="workspaceHint">Required. Choose a task directory on the server; relative paths are resolved from the settings file’s directory.</p>
+
         <fieldset>
           <legend data-i18n="devices">Your devices</legend>
           <label
@@ -408,6 +427,17 @@
               <option value="en">English</option>
             </select></label
           >
+          <label>
+            <span data-i18n="proactiveProgress">Speak task progress automatically</span>
+            <select id="proactive-progress" aria-describedby="proactive-progress-hint">
+              <option value="false" data-i18n="proactiveProgressOff">Off (default)</option>
+              <option value="true" data-i18n="proactiveProgressOn">On — I agree to spoken progress updates</option>
+            </select>
+          </label>
+          <p id="proactive-progress-hint" class="field-hint" data-i18n="proactiveProgressHint">
+            When enabled, new progress is spoken in one short sentence. Final results
+            and progress you ask for are always available. Applies to new conversations.
+          </p>
           <label>
             <span data-i18n="lengthPenalty">Speaking length (length_penalty)</span>
             <input id="length-penalty" type="number" min="0.1" max="5"
@@ -453,9 +483,14 @@
             <fieldset id="auto-routing-options" hidden disabled>
             <legend data-i18n="autoRoutingSettings">Auto routing settings</legend>
             <p class="field-hint" data-i18n="routingHint">Only used in Auto mode. Low effort is recommended for faster routing.</p>
+            <label><span data-i18n="modelProvider">Provider</span>
+              <select id="routing-provider">
+                <option value="codex">Codex</option>
+                <option value="gemini" data-i18n="geminiOfficial">Gemini</option>
+              </select></label>
             <label><span data-i18n="routingModel">Routing model</span>
               <input id="routing-model" autocomplete="off" /></label>
-            <p class="field-hint" data-i18n="modelInheritHint">Leave blank to use the task model, or the server default if both are blank.</p>
+            <p class="field-hint" data-i18n="modelInheritHint">Blank model: Codex inherits the task model; Gemini uses the default Gemini model below.</p>
             <label><span data-i18n="reasoningEffort">Reasoning effort</span>
               <select id="routing-effort">
               <option value="minimal" data-i18n="effortMinimal">Minimal</option>
@@ -471,9 +506,14 @@
           </fieldset>
           <fieldset>
             <legend data-i18n="responseSettings">Progress and result summaries</legend>
+            <label><span data-i18n="modelProvider">Provider</span>
+              <select id="response-provider">
+                <option value="codex">Codex</option>
+                <option value="gemini" data-i18n="geminiOfficial">Gemini</option>
+              </select></label>
             <label><span data-i18n="responseModel">Summary model</span>
               <input id="response-model" autocomplete="off" /></label>
-            <p class="field-hint" data-i18n="responseHint">Also handles direct questions and image understanding. Leave blank to use the task model. Low effort is the default.</p>
+            <p class="field-hint" data-i18n="responseHint">Summarizes progress and final results. Independent of routing and multimodal.</p>
             <label><span data-i18n="reasoningEffort">Reasoning effort</span>
               <select id="response-effort">
               <option value="minimal" data-i18n="effortMinimal">Minimal</option>
@@ -483,11 +523,38 @@
               <option value="xhigh" data-i18n="effortXhigh">Extra high</option>
             </select></label>
           </fieldset>
-          <p class="field-hint" data-i18n="effortHint">Higher effort can take longer. Available levels depend on the model. Changes apply to new conversations.</p>
+          <fieldset>
+            <legend data-i18n="multimodalSettings">Direct answers and multimodal understanding</legend>
+            <label><span data-i18n="modelProvider">Provider</span>
+              <select id="multimodal-provider">
+                <option value="codex">Codex</option>
+                <option value="gemini" data-i18n="geminiOfficial">Gemini</option>
+              </select></label>
+            <label><span data-i18n="multimodalModel">Multimodal model</span>
+              <input id="multimodal-model" autocomplete="off" /></label>
+            <p id="multimodal-codex-audio-hint" class="field-hint" data-i18n="codexAudioHint" hidden>Codex supports text and images, but cannot understand audio. Choose Gemini for audio understanding.</p>
+            <p class="field-hint" data-media-key="multimodalHint">Used when Auto routes to multimodal. This does not change the streaming Omni model.</p>
+            <label><span data-i18n="reasoningEffort">Reasoning effort</span>
+              <select id="multimodal-effort">
+              <option value="minimal" data-i18n="effortMinimal">Minimal</option>
+              <option value="low" data-i18n="effortLow">Low · faster</option>
+              <option value="medium" data-i18n="effortMedium">Medium</option>
+              <option value="high" data-i18n="effortHigh">High</option>
+              <option value="xhigh" data-i18n="effortXhigh">Extra high</option>
+            </select></label>
+          </fieldset>
+          <fieldset>
+            <legend data-i18n="geminiSettings">Official Gemini connection</legend>
+            <p class="field-hint" data-i18n="geminiHint">Calls go directly to Google. Used only by roles explicitly set to Gemini; General still uses Codex.</p>
+            <label><span data-i18n="geminiDefaultModel">Default Gemini model</span>
+              <input id="gemini-model" autocomplete="off" required /></label>
+            <label><span>Gemini API Key</span>
+              <input id="gemini-key" type="password" autocomplete="new-password" spellcheck="false" /></label>
+            <p id="gemini-key-status" class="field-hint"></p>
+            <p class="field-hint" data-i18n="geminiKeyHint">Leave blank to keep the saved key or use GEMINI_API_KEY / GOOGLE_API_KEY on the server. Saved keys are never returned to the browser.</p>
+          </fieldset>
+          <p class="field-hint" data-i18n="effortHint">Save and start a new conversation to apply changes.</p>
           <label
-            ><span data-i18n="workspace">Task workspace</span
-            ><input id="backend-workspace" required autocomplete="off" /></label
-          ><label
             ><span data-i18n="codexPath">Codex executable</span
             ><input id="backend-binary" required autocomplete="off"
           /></label>
@@ -508,6 +575,6 @@
       </form>
     </dialog>
     <div id="toast" class="toast" role="status" hidden></div>
-    <script type="module" src="/static/app.js"></script>
+    <script type="module" src="/static/app.js?v=20260921-model-modes"></script>
   </body>
 </html>

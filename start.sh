@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+export VENUS_LAUNCH_CWD="$PWD"
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
 export PYTHONDONTWRITEBYTECODE=1
 python_bin="${VENUS_PYTHON:-$PWD/runtime/venv/bin/python}"

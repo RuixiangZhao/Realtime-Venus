@@ -147,27 +147,23 @@ Both scripts accept `--system-prompt` and `--prompt`; see the [Audio guide](fron
 
 ### 3. Talk to Realtime-Venus
 
-The online Duplex demo requires **at least one NVIDIA A100 GPU**. Place the complete Omni checkpoint in `model_weight/`, then start the demo:
+The online Duplex demo requires **at least one NVIDIA A100 GPU**. Configure the frontend model in root [`config.json`](config.json), and configure task execution in [`harness/config.json`](harness/config.json). The Demo file references the Harness file through `harness.config`.
+
+Follow the [Demo configuration guide](demos/README.md#two-configuration-files) and [Harness configuration guide](harness/README.md#configuration-file), then start:
 
 ```bash
-bash start.sh
+bash start.sh --config config.json
 ```
 
-For an existing checkpoint elsewhere:
+Choose `model.type: "audio"` for microphone and audio upload, or `"video"` (also accepts `"omni"`) for camera with microphone and video upload. Set `model.path` to the corresponding downloaded checkpoint. Complete Codex login if prompted; default ports are **8031** for the model and **8032** for the web service.
 
-```bash
-bash start.sh --model-path /path/to/Realtime-Venus-Omni
-```
-
-Complete Codex login if prompted. The launcher starts the model API on **8031** and the browser service on **8032**.
-
-If running on a remote server, keep this tunnel open on your local computer, replacing `user@server` with your SSH login:
+On your local computer, keep this tunnel open, replacing `user@server` with your SSH login:
 
 ```bash
 ssh -N -L 8032:127.0.0.1:8032 user@server
 ```
 
-Open [http://localhost:8032](http://localhost:8032), select **voice**, **camera + microphone**, or **video upload**, and start a conversation. Checkpoint layout, configuration, and service management are covered in the [Demo guide](demos/README.md).
+Open [http://localhost:8032](http://localhost:8032), complete Settings and start a conversation. See the [Demo guide](demos/README.md) for service management.
 
 ### 4. Android Demo (Beta)
 
@@ -201,7 +197,7 @@ Realtime-Venus/
 ├── download_models.py      # Download Omni, Audio, or both using the HF manifest
 ├── pyproject.toml          # Standalone Harness package
 ├── requirements.txt        # Shared dependency entry for inference examples
-├── config.example.json     # Server configuration template
+├── config.json             # Frontend model, web service and Harness config path
 └── install.sh / start.sh    # Install, start, inspect, and stop the Demo
 ```
 

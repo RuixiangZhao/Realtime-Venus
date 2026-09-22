@@ -1,4 +1,4 @@
-import { t } from "./i18n.js";
+import { t } from "./i18n.js?v=20260921-model-modes";
 const terminal = new Set(["delivered", "failed", "cancelled"]);
 function icon(name) {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");

@@ -7,6 +7,7 @@ import os
 import socket
 from dataclasses import dataclass
 from pathlib import Path
+from demos.variants import model_name
 
 
 def checked_file(path: Path) -> Path:
@@ -18,8 +19,13 @@ def checked_file(path: Path) -> Path:
     return path
 
 
-def checkpoint_directory(path: Path) -> Path:
+def checkpoint_directory(path: Path, model_type: str | None = None) -> Path:
     path = path.expanduser().resolve()
+    if model_type and not (path / "config.json").is_file():
+        for candidate in (path / model_name(model_type), path / "model_weight" / model_name(model_type)):
+            if (candidate / "config.json").is_file():
+                path = candidate
+                break
     if (
         not (path / "config.json").is_file()
         and (path / "model_weight/config.json").is_file()
@@ -29,6 +35,10 @@ def checkpoint_directory(path: Path) -> Path:
     config = json.loads((path / "config.json").read_text())
     if not isinstance(config, dict):
         raise ValueError("Model config.json must contain an object")
+    architecture = config.get("model_type")
+    checkpoint_type = {"realtime_venus_omni": "omni", "minicpmo": "audio"}.get(architecture)
+    if model_type and checkpoint_type and model_type != checkpoint_type:
+        raise ValueError(f"Selected {model_type}, but {path} contains {checkpoint_type} weights; use --model-path with {model_name(model_type)}")
     checked_file(path / "tokenizer.json")
     index = path / "model.safetensors.index.json"
     if index.exists():
@@ -80,6 +90,9 @@ class LaunchConfig:
     web_port: int = 8032
     memory_minutes: int = 40
     startup_timeout: float = 600
+    model_type: str = "omni"
+    harness_path: Path | None = None
+    demo_path: Path | None = None
 
     @property
     def runtime(self) -> Path:
@@ -87,6 +100,8 @@ class LaunchConfig:
 
     @property
     def settings(self) -> Path:
+        if self.harness_path is not None:
+            return self.harness_path
         explicit = os.getenv("HARNESS_CONFIG")
         if explicit:
             return (self.root / Path(explicit).expanduser()).resolve()

@@ -1,4 +1,4 @@
-import { t } from "./i18n.js";
+import { t } from "./i18n.js?v=20260921-model-modes";
 
 /** Estimate voiced fundamental frequency with a normalized difference function.
  * Unvoiced sound and silence have no reliable pitch and return zero.

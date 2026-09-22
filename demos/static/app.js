@@ -1,13 +1,14 @@
-import { t, getLanguage, setLanguage } from "./i18n.js";
+import { t, getLanguage, setLanguage } from "./i18n.js?v=20260921-model-modes";
 import { Presence } from "./presence.js";
 import { AudioPlayer, encode } from "./audio.js";
 import { MediaCapture } from "./capture.js";
-import { MicrophoneWaveform } from "./waveform.js";
-import { TaskTray } from "./tasks.js";
+import { MicrophoneWaveform } from "./waveform.js?v=20260921-model-modes";
+import { TaskTray } from "./tasks.js?v=20260921-model-modes";
 
 const $ = (id) => document.getElementById(id);
 const state = {
-  mode: "audio",
+  mode: "camera",
+  modelType: null,
   phase: "idle",
   connected: false,
   connecting: false,
@@ -18,6 +19,8 @@ const state = {
   token: null,
   startedAt: 0,
   configuration: null,
+  configured: null,
+  checkingSettings: false,
   file: null,
   fileUrl: null,
   upload: null,
@@ -28,6 +31,12 @@ const state = {
   lastBackpressure: 0,
   online: true,
 };
+const audioTextKeys = new Set(["replaceVideo", "dropHint", "dropTypes", "videoMode", "intro", "multimodalHint", "videoReady", "startVideo", "chooseVideo", "uploading", "watching", "videoFinished", "videoFailed", "fileTooLarge", "invalidVideo", "videoHint"]);
+function mediaText(key) {
+  return t(state.modelType === "audio" && audioTextKeys.has(key) ? `audio_${key}` : key);
+}
+function previewMedia() { return $(state.modelType === "audio" ? "preview-audio" : "preview-video"); }
+
 const devices = { microphone: "", camera: "" };
 try {
   Object.assign(
@@ -115,7 +124,15 @@ function sendInput(pcm, jpeg) {
 function render() {
   const busy = state.connected || state.connecting || state.stopping;
   document.body.dataset.mode = state.mode;
-  const micActive = Boolean(capture.stream) && state.mode !== "video" && !state.stopping;
+  document.body.dataset.modelType = state.modelType || "loading";
+  $("frontend-model-name").textContent = state.modelType ? `REALTIME-VENUS-${state.modelType.toUpperCase()}` : "REALTIME-VENUS";
+  for (const node of document.querySelectorAll("[data-media-key]")) node.textContent = mediaText(node.dataset.mediaKey);
+  $("video-file").accept = state.modelType === "audio" ? "audio/*,.wav,.mp3,.m4a,.flac,.ogg,.opus,.aac,.aiff,.aif,.wma" : "video/*,.mp4,.mov,.webm,.mkv,.avi";
+  $("camera-device").closest("label").hidden = state.modelType === "audio";
+  $("preview-audio").hidden = state.modelType !== "audio";
+  $("preview-video").hidden = state.modelType === "audio";
+  $("media-preview").classList.toggle("audio-file", state.modelType === "audio");
+  const micActive = Boolean(capture.stream) && state.mode !== "file" && !state.stopping;
   microphoneWaveform.setState(micActive, state.muted);
   document.body.classList.toggle("mic-open", micActive);
   for (const button of document.querySelectorAll(".mode-button")) {
@@ -124,16 +141,22 @@ function render() {
       "aria-pressed",
       String(button.dataset.mode === state.mode),
     );
-    button.disabled = busy;
+    button.hidden = button.dataset.mode === (state.modelType === "audio" ? "camera" : "audio");
+    button.disabled = busy || state.checkingSettings || !state.modelType;
   }
   $("start-button").hidden = state.connected;
-  $("start-button").disabled = state.connecting || state.stopping;
-  $("start-label").textContent = t(
-    state.stopping
+  $("start-button").disabled = state.connecting || state.stopping || state.checkingSettings || !state.modelType;
+  $("setup-banner").hidden = busy || state.configured !== false;
+  $("start-label").textContent = mediaText(
+    state.checkingSettings
+      ? "checkingSettings"
+      : state.configured === false && !busy
+        ? "completeSettings"
+        : state.stopping
       ? "ending"
       : state.connecting
         ? "connecting"
-        : state.mode === "video"
+        : state.mode === "file"
           ? state.file
             ? "startVideo"
             : "chooseVideo"
@@ -141,50 +164,50 @@ function render() {
   );
   $("stop-button").hidden = !(state.connected || state.connecting);
   $("stop-button").disabled = state.stopping;
-  $("mute-mic").hidden = !state.connected || state.mode === "video";
+  $("mute-mic").hidden = !state.connected || state.mode === "file";
   $("mute-mic").setAttribute("aria-pressed", String(state.muted));
   $("mute-mic")
     .querySelector("use")
     .setAttribute("href", state.muted ? "#i-mic-off" : "#i-mic");
   $("mute-output").hidden = !state.connected;
   $("mute-output").setAttribute("aria-pressed", String(state.outputMuted));
-  $("upload-zone").hidden = state.mode !== "video" || Boolean(state.file);
+  $("upload-zone").hidden = state.mode !== "file" || Boolean(state.file);
   const preview =
     (state.mode === "camera" && Boolean(capture.stream)) ||
-    (state.mode === "video" && Boolean(state.file));
+    (state.mode === "file" && Boolean(state.file));
   $("media-preview").hidden = !preview;
   $("experience").classList.toggle("previewing", preview);
   $("media-preview").classList.toggle("camera", state.mode === "camera");
-  $("replace-video").hidden = state.mode !== "video" || !state.file || busy;
-  $("preview-label").textContent = t(
+  $("replace-video").hidden = state.mode !== "file" || !state.file || busy;
+  $("preview-label").textContent = mediaText(
     state.mode === "camera"
       ? "yourView"
       : state.connected
         ? "watching"
         : "videoReady",
   );
-  $("preview-video").controls = state.mode === "video" && !busy;
+  previewMedia().controls = state.mode === "file" && !busy;
   const presenceKey = state.connecting
     ? "connecting"
     : state.phase === "speaking"
       ? "speaking"
       : state.connected
-        ? state.mode === "video"
+        ? state.mode === "file"
           ? "watching"
           : "listening"
-        : state.mode === "video"
+        : state.mode === "file"
           ? "videoReady"
           : "presenceIdle";
-  $("presence-label").textContent = t(presenceKey);
+  $("presence-label").textContent = mediaText(presenceKey);
   let hint =
     state.mode === "camera"
       ? "cameraHint"
-      : state.mode === "video"
+      : state.mode === "file"
         ? "videoHint"
         : "startHint";
   if (state.connected)
     hint =
-      state.mode === "video"
+      state.mode === "file"
         ? state.uploadState === "complete"
           ? "videoFinished"
           : "watching"
@@ -194,7 +217,8 @@ function render() {
   if (state.uploadState === "uploading") hint = "uploading";
   if (state.connecting) hint = "connecting";
   if (state.stopping) hint = "ending";
-  $("control-hint").textContent = t(hint);
+  if (!busy && state.configured === false) hint = "notConfigured";
+  $("control-hint").textContent = mediaText(hint);
   const status = $("connection-state");
   status.classList.toggle("pending", state.connecting || state.stopping);
   status.classList.toggle("offline", !state.online);
@@ -204,11 +228,11 @@ function render() {
       ? t("connecting")
       : state.connected
         ? `${t("live")} · ${elapsed()}`
-        : t(state.online ? "available" : "offline");
+        : t(!state.online ? "offline" : state.configured === false ? "setupNeeded" : "available");
   $("reset-button").disabled = state.connecting || state.stopping;
   if (!state.transcript.size)
-    $("caption-text").textContent = t(
-      state.mode === "video" ? "videoHint" : "prompt",
+    $("caption-text").textContent = mediaText(
+      state.mode === "file" ? "videoHint" : "prompt",
     );
 }
 function elapsed() {
@@ -222,24 +246,35 @@ function setMode(mode) {
   if (state.connected || state.connecting || state.stopping) return;
   state.mode = mode;
   state.uploadState = "";
-  $("preview-video").pause();
-  $("preview-video").srcObject = null;
-  if (mode === "video" && state.fileUrl) $("preview-video").src = state.fileUrl;
+  previewMedia().pause();
+  previewMedia().srcObject = null;
+  if (mode === "file" && state.fileUrl) previewMedia().src = state.fileUrl;
   else {
-    $("preview-video").removeAttribute("src");
-    $("preview-video").load();
+    previewMedia().removeAttribute("src");
+    previewMedia().load();
   }
   $("video-name").textContent =
-    mode === "video" && state.file ? state.file.name : "";
+    mode === "file" && state.file ? state.file.name : "";
   $("video-time").textContent = "";
   render();
 }
-async function refreshStatus() {
+async function refreshStatus(fresh = false) {
   try {
-    const response = await fetch("/api/status", { cache: "no-store" });
+    const response = await fetch(`/api/status${fresh ? "?fresh=true" : ""}`, { cache: "no-store" });
     if (!response.ok) throw Error();
     const status = await response.json();
     state.online = true;
+    if (!["audio", "omni"].includes(status.model_type)) throw Error("Unknown frontend model type");
+    if (state.modelType !== status.model_type && !state.connected && !state.connecting) {
+      if (state.fileUrl) URL.revokeObjectURL(state.fileUrl);
+      state.file = state.fileUrl = null;
+      for (const media of [$("preview-video"), $("preview-audio")]) {
+        media.pause(); media.removeAttribute("src"); media.load();
+      }
+      state.modelType = status.model_type;
+      state.mode = status.model_type === "audio" ? "audio" : "camera";
+    }
+    state.configured = status.configured;
     return status;
   } catch {
     state.online = false;
@@ -248,35 +283,73 @@ async function refreshStatus() {
     render();
   }
 }
-async function startSession() {
+async function requireSettings() {
+  if (state.checkingSettings) return false;
+  state.checkingSettings = true;
+  render();
+  try {
+    const status = await refreshStatus(true);
+    if (!status) {
+      notify(t("network"), true);
+      return false;
+    }
+    if (!status.configured) {
+      await openSettings(true);
+      return false;
+    }
+    return true;
+  } finally {
+    state.checkingSettings = false;
+    render();
+  }
+}
+async function chooseMode(mode) {
   if (state.connected || state.connecting || state.stopping) return;
-  if (state.mode === "video" && !state.file) {
-    $("video-file").click();
+  if (await requireSettings()) {
+    if (mode === "file" || mode === (state.modelType === "audio" ? "audio" : "camera")) setMode(mode);
+  }
+}
+async function chooseVideo() {
+  if (state.connected || state.connecting || state.stopping) return;
+  if (!(await requireSettings())) return;
+  if (state.connected || state.connecting || state.stopping) return;
+  $("video-file").click();
+}
+async function startSession() {
+  if (state.connected || state.connecting || state.stopping || state.checkingSettings) return;
+  if (state.mode === "file" && !state.file) {
+    await chooseVideo();
+    return;
+  }
+  if (state.configured === false) {
+    await requireSettings();
     return;
   }
   // Unlock playback during the user's click, before any asynchronous network request.
   const primed = player.prime();
-  state.connecting = true;
+  state.checkingSettings = true;
   const epoch = ++state.epoch;
-  setPhase("connecting");
+  render();
   try {
     await primed;
-    const status = await refreshStatus();
+    const status = await refreshStatus(true);
     if (epoch !== state.epoch) return;
     if (!status) throw Error(t("network"));
-    if (status.busy) throw Error(t("busy"));
     if (!status.configured) {
-      state.connecting = false;
-      setPhase("idle");
-      await openSettings();
-      notify(t("notConfigured"));
+      state.checkingSettings = false;
+      render();
+      await openSettings(true);
       return;
     }
+    if (status.busy) throw Error(t("busy"));
+    state.checkingSettings = false;
+    state.connecting = true;
+    setPhase("connecting");
     tasks.clear();
     clearTranscript();
     state.muted = false;
     state.uploadState = "";
-    if (state.mode !== "video") {
+    if (state.mode !== "file") {
       const started = await capture.start(state.mode, devices);
       if (!started || epoch !== state.epoch) return;
       render();
@@ -292,22 +365,29 @@ async function startSession() {
     state.startedAt = Date.now();
     capture.active = true;
     setPhase("listening");
-    if (state.mode === "video") await uploadVideo(epoch);
+    if (state.mode === "file") await uploadVideo(epoch);
   } catch (error) {
     if (epoch !== state.epoch) return;
-    notify(humanError(error), true);
     await stopSession().catch(() => {});
+    if (error.code === "configuration") {
+      state.configured = false;
+      await openSettings(true);
+    } else notify(humanError(error), true);
+  } finally {
+    state.checkingSettings = false;
+    render();
   }
 }
 function connect(epoch) {
   return new Promise((resolve, reject) => {
-    const mode = state.mode === "audio" ? "audio" : "omni",
-      source = state.mode === "video" ? "video" : "live";
+    const mode = state.modelType,
+      source = state.mode === "file" ? (state.modelType === "audio" ? "audio_file" : "video") : "live";
     const socket = new WebSocket(
       `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws?mode=${mode}&source=${source}`,
     );
     state.socket = socket;
     let settled = false;
+    let serverRejected = false;
     const timer = setTimeout(() => {
       if (!settled) {
         settled = true;
@@ -332,6 +412,7 @@ function connect(epoch) {
         return;
       }
       if (message.type === "fatal_error") {
+        serverRejected = true;
         const error = Error(
           message.code === "busy"
             ? t("busy")
@@ -339,10 +420,14 @@ function connect(epoch) {
               ? t("notConfigured")
               : message.error || t("connectionFailed"),
         );
+        error.code = message.code;
         if (!settled) {
           settled = true;
           clearTimeout(timer);
           reject(error);
+        } else if (error.code === "configuration") {
+          state.configured = false;
+          void stopSession().then(() => openSettings(true)).catch(() => {});
         } else {
           notify(humanError(error), true);
           void stopSession().catch(() => {});
@@ -354,7 +439,7 @@ function connect(epoch) {
       else if (message.type === "text")
         appendText(message.text, message.utterance_id);
       else if (message.type === "works") tasks.update(message.works);
-      else if (message.type === "video_status") videoStatus(message);
+      else if (message.type === "media_status" || message.type === "video_status") videoStatus(message);
       else if (message.type === "command_error") notify(message.error, true);
     };
     socket.onerror = () => {
@@ -370,7 +455,7 @@ function connect(epoch) {
         settled = true;
         reject(Error(t("network")));
       }
-      if (epoch === state.epoch && !state.stopping) {
+      if (epoch === state.epoch && !state.stopping && !serverRejected) {
         notify(t("network"), true);
         void stopSession(false).catch(() => {});
       }
@@ -419,7 +504,7 @@ async function stopSession(notifyServer = true) {
       state.stopping = false;
       state.uploadState = "";
       $("upload-progress").hidden = true;
-      $("preview-video").pause();
+      previewMedia().pause();
       tasks.end();
       setPhase("idle");
       void refreshStatus();
@@ -434,23 +519,25 @@ async function stopSession(notifyServer = true) {
     state.stopPromise = null;
   }
 }
-function selectFile(file) {
+async function selectFile(file) {
   if (!file || state.connected || state.connecting || state.stopping) return;
   if (file.size > 200 * 1024 * 1024) {
-    notify(t("fileTooLarge"), true);
+    notify(mediaText("fileTooLarge"), true);
     return;
   }
-  if (
-    !file.type.startsWith("video/") &&
-    !/\.(mp4|mov|webm|mkv|avi)$/i.test(file.name)
-  ) {
-    notify(t("invalidVideo"), true);
+  const validFile = state.modelType === "audio"
+    ? (file.type.startsWith("audio/") || /\.(wav|mp3|m4a|flac|ogg|opus|aac|aiff|aif|wma)$/i.test(file.name))
+    : (file.type.startsWith("video/") || /\.(mp4|mov|webm|mkv|avi)$/i.test(file.name));
+  if (!validFile) {
+    notify(mediaText("invalidVideo"), true);
     return;
   }
+  if (!(await requireSettings())) return;
+  if (state.connected || state.connecting || state.stopping) return;
   if (state.fileUrl) URL.revokeObjectURL(state.fileUrl);
   state.file = file;
   state.fileUrl = URL.createObjectURL(file);
-  setMode("video");
+  setMode("file");
 }
 async function uploadVideo(epoch) {
   state.uploadState = "uploading";
@@ -463,7 +550,7 @@ async function uploadVideo(epoch) {
     state.upload = xhr;
     xhr.open(
       "POST",
-      `/api/sessions/${encodeURIComponent(state.sessionId)}/video`,
+      `/api/sessions/${encodeURIComponent(state.sessionId)}/${state.modelType === "audio" ? "audio" : "video"}`,
     );
     xhr.setRequestHeader("X-Venus-Session-Token", state.token);
     xhr.setRequestHeader(
@@ -482,7 +569,7 @@ async function uploadVideo(epoch) {
         try {
           detail = JSON.parse(xhr.responseText).detail;
         } catch {}
-        reject(Error(detail || t("videoFailed")));
+        reject(Error(detail || mediaText("videoFailed")));
       }
     };
     xhr.onerror = () => reject(Error(t("network")));
@@ -493,7 +580,7 @@ async function uploadVideo(epoch) {
   if (epoch !== state.epoch) return;
   state.uploadState = "feeding";
   $("upload-progress").hidden = true;
-  const video = $("preview-video");
+  const video = previewMedia();
   video.currentTime = 0;
   await video.play().catch(() => {});
   render();
@@ -503,17 +590,17 @@ function videoStatus(message) {
   if (message.seconds !== undefined)
     $("video-time").textContent = `${message.seconds}s`;
   if (message.state === "feeding") {
-    const video = $("preview-video");
+    const video = previewMedia();
     if (
       Number.isFinite(video.duration) &&
       Math.abs(video.currentTime - message.seconds) > 2
     )
       video.currentTime = Math.min(video.duration, message.seconds);
   }
-  if (message.state === "complete") $("preview-video").pause();
+  if (message.state === "complete") previewMedia().pause();
   if (message.state === "error") {
-    notify(t("videoFailed"), true);
-    $("preview-video").pause();
+    notify(mediaText("videoFailed"), true);
+    previewMedia().pause();
   }
   render();
 }
@@ -527,7 +614,7 @@ function clearTranscript() {
   $("transcript").append(empty);
   $("caption").classList.remove("has-speech");
   $("caption-speaker").hidden = true;
-  $("caption-text").textContent = t("prompt");
+  $("caption-text").textContent = mediaText("prompt");
 }
 function appendText(text, id) {
   if (!text) return;
@@ -609,14 +696,131 @@ function updateRoutingOptions() {
   options.disabled =
     !automatic || state.connected || state.connecting || state.stopping;
 }
-$("routing-mode").onchange = updateRoutingOptions;
-async function openSettings() {
+function updateProviders() {
+  const busy = state.connected || state.connecting || state.stopping;
+  for (const role of ["routing", "response", "multimodal"]) {
+    const gemini = $(`${role}-provider`).value === "gemini";
+    $(`${role}-effort`).closest("label").hidden = gemini;
+    $(`${role}-effort`).disabled = busy || gemini;
+    $(`${role}-model`).placeholder = gemini ? $("gemini-model").value : "";
+  }
+  $("multimodal-codex-audio-hint").hidden = $("multimodal-provider").value !== "codex";
+}
+$("routing-mode").onchange = () => { updateRoutingOptions(); updateProviders(); };
+for (const role of ["routing", "response", "multimodal"]) {
+  $(`${role}-provider`).onchange = () => {
+    $(`${role}-model`).value = "";
+    updateProviders();
+  };
+}
+$("gemini-model").oninput = updateProviders;
+function renderCodexLogin() {
+  const status = state.configuration?.codex_login?.state || "error";
+  $("codex-login-status").textContent = t(`codexLogin_${status}`);
+  $("codex-login-help").hidden = status === "logged_in";
+}
+$("recheck-codex").onclick = async () => {
+  const button = $("recheck-codex");
+  button.disabled = true;
+  $("codex-login-status").textContent = t("codexChecking");
+  try {
+    const response = await fetch("/api/config", {cache: "no-store"});
+    if (!response.ok) throw Error(t("settingsLoadFailed"));
+    const result = await response.json();
+    state.configuration.codex_login = result.codex_login;
+    state.configured = result.configured;
+    renderCodexLogin();
+    showSettingsIssues(settingsIssues(result.codex_login?.state === "logged_in" ? [] : [result.codex_login.message]));
+    render();
+  } catch {
+    $("codex-login-status").textContent = t("settingsLoadFailed");
+  } finally { button.disabled = false; }
+};
+function settingsIssues(serverProblems = []) {
+  const issues = [];
+  const add = (id, key) => { if (!issues.some(x => x.id === id)) issues.push({id, message: t(key)}); };
+  if (!$("backend-workspace").value.trim()) add("backend-workspace", "workspaceRequired");
+  if (!$("backend-binary").value.trim()) add("backend-binary", "codexRequired");
+  const usesGemini = $("response-provider").value === "gemini" || $("multimodal-provider").value === "gemini" || ($("routing-mode").value === "auto" && $("routing-provider").value === "gemini");
+  if (usesGemini && !state.configuration?.gemini_key_configured && !$("gemini-key").value.trim()) add("gemini-key", "geminiRequired");
+  for (const node of $("settings-form").querySelectorAll("input,select")) {
+    if (node.disabled || (!usesGemini && node.id === "gemini-model")) continue;
+    if (!node.checkValidity() && !issues.some(x => x.id === node.id))
+      issues.push({id: node.id, message: `${node.closest("label")?.querySelector("span")?.textContent || node.id}: ${t("fieldRequired")}`});
+  }
+  for (const message of serverProblems || []) {
+    if (/Configure Task workspace/i.test(message)) add("backend-workspace", "workspaceRequired");
+    else if (/Codex executable/i.test(message)) add("backend-binary", "codexRequired");
+    else if (/Gemini API key/i.test(message)) add("gemini-key", "geminiRequired");
+    else issues.push({message: String(message).split(" / ")[getLanguage() === "zh" && String(message).includes(" / ") ? 1 : 0]});
+  }
+  return issues;
+}
+function focusSetting(id) {
+  const field = $(id);
+  if (!field) return;
+  const details = field.closest("details");
+  if (details) details.open = true;
+  field.focus({preventScroll: true});
+  field.scrollIntoView({block: "center", behavior: "smooth"});
+}
+function clearSettingsIssues() {
+  $("settings-guidance").hidden = true;
+  $("settings-issues").replaceChildren();
+  for (const node of $("settings-form").querySelectorAll("[aria-invalid]")) {
+    node.removeAttribute("aria-invalid");
+    const errorId = `${node.id}-error`;
+    $(errorId)?.remove();
+    node.setAttribute("aria-describedby", (node.getAttribute("aria-describedby") || "").split(" ").filter(id => id && id !== errorId).join(" "));
+  }
+}
+function showSettingsIssues(issues, focusFirst = false) {
+  clearSettingsIssues();
+  $("settings-guidance").hidden = false;
+  $("settings-guidance-copy").textContent = t(issues.length ? "setupInstructions" : "setupSaveNext");
+  for (const issue of issues) {
+    const li = document.createElement("li");
+    const item = document.createElement(issue.id ? "button" : "span");
+    item.textContent = issue.message;
+    if (issue.id) {
+      item.type = "button";
+      item.onclick = () => focusSetting(issue.id);
+      const field = $(issue.id);
+      field.setAttribute("aria-invalid", "true");
+      const hint = document.createElement("small");
+      hint.id = `${issue.id}-error`;
+      hint.className = "setting-error";
+      hint.textContent = issue.message;
+      field.after(hint);
+      field.setAttribute("aria-describedby", `${field.getAttribute("aria-describedby") || ""} ${hint.id}`.trim());
+    }
+    li.append(item);
+    $("settings-issues").append(li);
+  }
+  if (focusFirst && issues[0]?.id) focusSetting(issues[0].id);
+}
+$("settings-form").addEventListener("input", () => {
+  if (!$("settings-guidance").hidden) showSettingsIssues(settingsIssues());
+});
+
+async function openSettings(required = false) {
   try {
     const response = await fetch("/api/config", { cache: "no-store" });
-    if (!response.ok) throw Error(t("notConfigured"));
+    if (!response.ok) throw Error(t("settingsLoadFailed"));
     state.configuration = await response.json();
+    renderCodexLogin();
     const data = state.configuration.data;
+    $("backend-workspace").value = data.workspace || "";
+    $("gemini-model").value = data.gemini.model;
+    $("gemini-key").value = "";
+    $("gemini-key-status").textContent = t(state.configuration.gemini_key_configured ? "geminiKeyConfigured" : "geminiKeyMissing");
+    for (const [role, section] of [["routing", "routing"], ["response", "responses"], ["multimodal", "multimodal"]]) {
+      $(`${role}-provider`).value = data[section].provider;
+    }
+    $("multimodal-model").value = data.multimodal.model || "";
+    $("multimodal-effort").value = data.multimodal.effort;
     $("reply-language").value = data.language;
+    $("proactive-progress").value = String(data.feedback.proactive_progress === true);
     $("length-penalty").value = data.duplex.length_penalty;
     $("backend-model").value = data.codex.model || "";
     $("backend-effort").value = data.codex.effort || "";
@@ -626,17 +830,22 @@ async function openSettings() {
     $("routing-timeout").value = data.routing.timeout_s;
     $("response-model").value = data.responses.model || "";
     $("response-effort").value = data.responses.effort;
-    $("backend-workspace").value = data.workspace;
     $("backend-binary").value = data.codex.command[0];
-    await enumerateDevices();
+    void enumerateDevices();
     const busy = state.connected || state.connecting || state.stopping;
     for (const node of $("settings-form").querySelectorAll(
       "input,select,button",
     ))
       node.disabled = busy;
     updateRoutingOptions();
+    updateProviders();
+    state.configured = state.configuration.configured;
     $("settings-message").textContent = busy ? t("settingsActive") : "";
-    $("settings-dialog").showModal();
+    clearSettingsIssues();
+    if (!$("settings-dialog").open) $("settings-dialog").showModal();
+    $("recheck-codex").disabled = busy;
+    if (!busy && (required || !state.configured))
+      showSettingsIssues(settingsIssues(state.configuration.check?.problems), true);
   } catch (error) {
     notify(humanError(error), true);
   }
@@ -644,23 +853,34 @@ async function openSettings() {
 $("settings-form").onsubmit = async (event) => {
   event.preventDefault();
   if (!state.configuration || state.connected) return;
+  const issues = settingsIssues();
+  if (issues.length) { showSettingsIssues(issues, true); return; }
+  clearSettingsIssues();
   const button = $("save-settings");
   button.disabled = true;
   try {
     const data = structuredClone(state.configuration.data);
+    data.workspace = $("backend-workspace").value.trim();
     data.language = $("reply-language").value;
+    data.feedback.proactive_progress = $("proactive-progress").value === "true";
     data.duplex.length_penalty = Number($("length-penalty").value);
     data.codex.model = $("backend-model").value.trim() || null;
     data.codex.effort = $("backend-effort").value || null;
     data.routing.mode = $("routing-mode").value;
     if (data.routing.mode === "auto") {
+      data.routing.provider = $("routing-provider").value;
       data.routing.model = $("routing-model").value.trim() || null;
       data.routing.effort = $("routing-effort").value;
       data.routing.timeout_s = Number($("routing-timeout").value);
     }
+    data.responses.provider = $("response-provider").value;
+    data.multimodal.provider = $("multimodal-provider").value;
+    data.multimodal.model = $("multimodal-model").value.trim() || null;
+    data.multimodal.effort = $("multimodal-effort").value;
+    data.gemini.model = $("gemini-model").value.trim();
+    data.gemini.api_key = $("gemini-key").value.trim();
     data.responses.model = $("response-model").value.trim() || null;
     data.responses.effort = $("response-effort").value;
-    data.workspace = $("backend-workspace").value.trim();
     data.codex.command = [$("backend-binary").value.trim(), "app-server"];
     const response = await fetch("/api/config", {
       method: "POST",
@@ -671,27 +891,35 @@ $("settings-form").onsubmit = async (event) => {
       body: JSON.stringify({ data, revision: state.configuration.revision }),
     });
     const result = await response.json();
-    if (!response.ok)
-      throw Error(
-        result.detail || result.problems?.join("; ") || t("notConfigured"),
-      );
+    if (!response.ok) {
+      showSettingsIssues(settingsIssues(result.problems || [result.detail || t("settingsSaveFailed")] ), true);
+      return;
+    }
     state.configuration = result;
+    state.configured = result.configured;
+    $("gemini-key").value = "";
     devices.microphone = $("microphone-device").value;
     devices.camera = $("camera-device").value;
     try {
       localStorage.setItem("venus-devices", JSON.stringify(devices));
     } catch {}
-    $("settings-dialog").close();
-    notify(t("settingsSaved"));
+    renderCodexLogin();
+    if (!result.configured) {
+      $("settings-message").textContent = t("settingsSavedLoginNeeded");
+      showSettingsIssues(settingsIssues(result.check?.problems), false);
+    } else {
+      $("settings-dialog").close();
+      notify(t("settingsSaved"));
+    }
     void refreshStatus();
   } catch (error) {
-    $("settings-message").textContent = humanError(error);
+    showSettingsIssues([{ message: t("settingsSaveFailed") + " " + humanError(error) }], false);
   } finally {
     button.disabled = false;
   }
 };
 for (const button of document.querySelectorAll(".mode-button"))
-  button.onclick = () => setMode(button.dataset.mode);
+  button.onclick = () => void chooseMode(button.dataset.mode);
 $("start-button").onclick = () => void startSession();
 $("stop-button").onclick = () => void stopSession().catch(() => {});
 $("mute-mic").onclick = () => {
@@ -704,12 +932,16 @@ $("mute-output").onclick = () => {
   player.setMuted(state.outputMuted);
   render();
 };
-$("video-file").onchange = (event) => selectFile(event.target.files[0]);
-$("replace-video").onclick = () => $("video-file").click();
+$("video-file").onchange = (event) => void selectFile(event.target.files[0]);
+$("replace-video").onclick = () => void chooseVideo();
+$("upload-zone").onclick = (event) => {
+  event.preventDefault();
+  void chooseVideo();
+};
 $("upload-zone").onkeydown = (event) => {
   if (event.key === "Enter" || event.key === " ") {
     event.preventDefault();
-    $("video-file").click();
+    void chooseVideo();
   }
 };
 for (const name of ["dragenter", "dragover"])
@@ -721,9 +953,10 @@ for (const name of ["dragleave", "drop"])
   $("upload-zone").addEventListener(name, (event) => {
     event.preventDefault();
     $("upload-zone").classList.remove("dragging");
-    if (name === "drop") selectFile(event.dataTransfer.files[0]);
+    if (name === "drop") void selectFile(event.dataTransfer.files[0]);
   });
 $("settings-button").onclick = () => void openSettings();
+$("complete-settings").onclick = () => void openSettings(true);
 $("history-button").onclick = () => $("history-dialog").showModal();
 for (const dialog of document.querySelectorAll("dialog")) {
   dialog.querySelector(".dialog-close").onclick = () => dialog.close();
@@ -745,6 +978,10 @@ $("reset-button").onclick = async () => {
   try {
     await player.prime();
     await stopSession();
+    if (status.busy) throw Error(t("busy"));
+    state.checkingSettings = false;
+    state.connecting = true;
+    setPhase("connecting");
     tasks.clear();
     clearTranscript();
     if (restart) await startSession();

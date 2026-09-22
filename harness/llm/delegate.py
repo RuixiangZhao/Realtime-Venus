@@ -6,6 +6,7 @@ import time
 from pathlib import Path
 
 from harness.core.models import BackendResponse
+from harness.core.speech import limit_spoken_sentences
 from harness.core.prompt import (
     build_oralization_prompt,
     oralization_system_instruction,
@@ -75,12 +76,32 @@ class CodexDirectAndPolish:
         speech = json.loads(raw)["speech"]
         if not isinstance(speech, str) or not speech.strip():
             raise ValueError("Polish 模型返回了空文本")
+        speech = limit_spoken_sentences(speech, 3)
+        if not speech:
+            raise ValueError("Polish 没有可播报的文本")
         return BackendResponse(
             speech,
-            "codex-live-polish",
-            "codex-configured",
+            getattr(self.backend, "provider_name", "codex-live") + "-polish",
+            getattr(self.backend, "model_name", "codex-configured"),
             int((time.monotonic() - started) * 1000),
         )
 
     async def aclose(self):
         pass
+
+
+class ConfiguredDirectAndPolish:
+    """Independent Direct/Multimodal and Polish providers."""
+
+    def __init__(self, direct, polish):
+        self.direct, self.polish = direct, polish
+
+    async def execute(self, request, context):
+        return await self.direct.execute(request, context)
+
+    async def oralize(self, request, source):
+        return await self.polish.oralize(request, source)
+
+    async def aclose(self):
+        await self.direct.aclose()
+        await self.polish.aclose()

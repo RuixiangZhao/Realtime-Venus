@@ -1,5 +1,4 @@
 # Local settings and credentials
-/config.json
 .env
 .env.*
 !.env.example
@@ -22,3 +21,8 @@ __pycache__/
 build/
 dist/
 .DS_Store
+
+# Private deployments and task outputs
+/config.local*.json
+/harness/config.local*.json
+/workspace/

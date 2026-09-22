@@ -70,3 +70,27 @@ def video_buckets(path):
             del pending[:32000]
             yield VideoBucket(pcm.ljust(32000, b"\0"), last_jpeg)
             second += 1
+
+
+def audio_buckets(path):
+    """Yield bounded 16 kHz mono PCM buckets, with no visual data."""
+    import av
+    with av.open(str(path)) as media:
+        if not media.streams.audio:
+            raise ValueError("上传文件没有音频轨道")
+        # Some audio containers (e.g. MP3) carry attached cover art. It is ignored.
+        if any(not (stream.disposition & stream.disposition.attached_pic) for stream in media.streams.video):
+            raise ValueError("Audio 模式请上传音频文件，而非视频")
+        resampler = av.AudioResampler(format="s16", layout="mono", rate=16000)
+        pending = bytearray()
+        def parts():
+            for source in media.decode(audio=0):
+                yield from resampler.resample(source)
+            yield from resampler.resample(None)
+        for frame in parts():
+            pending.extend(bytes(frame.planes[0])[:frame.samples * 2])
+            while len(pending) >= 32000:
+                yield VideoBucket(bytes(pending[:32000]), b"")
+                del pending[:32000]
+        if pending:
+            yield VideoBucket(bytes(pending).ljust(32000, b"\0"), b"")

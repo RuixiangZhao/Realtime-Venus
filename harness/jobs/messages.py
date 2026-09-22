@@ -1,16 +1,15 @@
 """Fixed user-facing messages; generated text follows the configured request language."""
 
-POLISH_ERROR = "后台播报系统有问题，请排查"
+POLISH_ERROR = "暂时查不到进度，请稍后再试。"
 
 ENGLISH = {
-    "后台播报系统有问题，请排查": "The backend reporting system has a problem. Please investigate.",
-    "任务还在等待处理，尚未开始执行。": "The task is waiting to be processed and has not started yet.",
-    "正在确定任务的处理方式，还没有开始执行。": "The task handling method is being determined; execution has not started yet.",
-    "正在等待关联任务完成，当前任务尚未开始执行。": "This task is waiting for related work to finish and has not started yet.",
-    "后台已返回结果，正在整理回复。": "The backend has returned a result; the response is being prepared.",
-    "后台任务仍在等待执行结果，暂时没有新的阶段进展。": "The task is still running; no new progress is available.",
-    "已进入多模态处理阶段，暂时还没有返回结果。": "Multimodal processing is underway; no result has returned yet.",
-    "专用任务仍在执行，暂时还没有返回阶段结果。": "The specialized task is still running; no interim result has returned yet.",
+    "暂时查不到进度，请稍后再试。": "I couldn't check the progress just now; please try again shortly.",
+    "还在排队，轮到后就开始处理。": "It is queued and will start when a slot is free.",
+    "我先确认一下怎么处理。": "I'm checking how to handle this.",
+    "等上一项做完，就接着处理这项。": "I'll start this once the related task finishes.",
+    "结果有了，我整理一下就告诉你。": "The result is ready; I'm putting the reply together.",
+    "我还在处理，有结果就告诉你。": "I'm still working on it.",
+    "我正在看你提供的内容。": "I'm reviewing what you shared.",
     "任务已取消。": "The task has been cancelled.",
     "任务执行失败。": "The task failed.",
     "任务已完成。": "The task is complete.",
